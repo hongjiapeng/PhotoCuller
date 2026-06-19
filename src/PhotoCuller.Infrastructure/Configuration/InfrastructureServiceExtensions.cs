@@ -1,9 +1,11 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using PhotoCuller.Core.Interfaces.Hashing;
 using PhotoCuller.Core.Interfaces.Scanning;
 using PhotoCuller.Core.Interfaces.Storage;
 using PhotoCuller.Infrastructure.Database;
+using PhotoCuller.Infrastructure.Hashing;
 using PhotoCuller.Infrastructure.Repositories;
 using PhotoCuller.Infrastructure.Scanning;
 using PhotoCuller.Infrastructure.ThumbnailCache;
@@ -51,6 +53,11 @@ public static class InfrastructureServiceExtensions
 
         // Thumbnail cache
         services.AddSingleton<IThumbnailService, ThumbnailService>();
+
+        // Hashing
+        services.AddTransient<IHashService, HashService>();
+        services.AddTransient<IPerceptualHashService, PerceptualHashService>();
+        services.AddTransient<ISimilarityService, SimilarityService>();
 
         return services;
     }
