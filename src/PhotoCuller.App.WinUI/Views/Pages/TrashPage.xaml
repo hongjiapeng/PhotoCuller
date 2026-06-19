@@ -1,0 +1,9 @@
+<Page
+    x:Class="PhotoCuller.App.WinUI.Views.Pages.TrashPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid>
+        <TextBlock Text="待删除" Style="{StaticResource TitleTextBlockStyle}"
+                   VerticalAlignment="Center" HorizontalAlignment="Center"/>
+    </Grid>
+</Page>

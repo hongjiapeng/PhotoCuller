@@ -1,0 +1,39 @@
+## .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+_ReSharper*/
+*.DotSettings.user
+
+## WinUI / Windows App SDK
+AppPackages/
+BundleArtifacts/
+*.msix
+*.msixbundle
+*.appxbundle
+*.appx
+
+## Logs & local data
+logs/
+*.log
+*.db
+*.db-shm
+*.db-wal
+
+## Thumbnails cache
+thumbnails/
+
+## User settings (local overrides only, not the template)
+appsettings.local.json
+
+## IDE
+.idea/
+*.swp
+*~
+
+## OS
+Thumbs.db
+.DS_Store
+desktop.ini

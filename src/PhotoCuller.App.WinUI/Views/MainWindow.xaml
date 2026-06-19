@@ -1,0 +1,58 @@
+<Window
+    x:Class="PhotoCuller.App.WinUI.Views.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Title="PhotoCuller">
+
+    <Grid>
+        <NavigationView
+            x:Name="NavView"
+            IsBackButtonVisible="Collapsed"
+            IsPaneToggleButtonVisible="True"
+            PaneDisplayMode="Left"
+            IsSettingsVisible="True"
+            SelectionChanged="NavView_SelectionChanged">
+
+            <NavigationView.MenuItems>
+                <NavigationViewItem Tag="library" Icon="Pictures">
+                    <NavigationViewItem.Content>
+                        <TextBlock Text="照片库"/>
+                    </NavigationViewItem.Content>
+                </NavigationViewItem>
+                <NavigationViewItem Tag="similar" Icon="ViewAll">
+                    <NavigationViewItem.Content>
+                        <TextBlock Text="相似照片组"/>
+                    </NavigationViewItem.Content>
+                </NavigationViewItem>
+                <NavigationViewItem Tag="recommended" Icon="Favorite">
+                    <NavigationViewItem.Content>
+                        <TextBlock Text="建议保留"/>
+                    </NavigationViewItem.Content>
+                </NavigationViewItem>
+                <NavigationViewItem Tag="pending" Icon="Clock">
+                    <NavigationViewItem.Content>
+                        <TextBlock Text="待处理"/>
+                    </NavigationViewItem.Content>
+                </NavigationViewItem>
+                <NavigationViewItemSeparator/>
+                <NavigationViewItem Tag="trash" Icon="Delete">
+                    <NavigationViewItem.Content>
+                        <TextBlock Text="待删除"/>
+                    </NavigationViewItem.Content>
+                </NavigationViewItem>
+                <NavigationViewItemSeparator/>
+                <NavigationViewItem Tag="aimodels" Icon="Repair">
+                    <NavigationViewItem.Content>
+                        <TextBlock Text="AI 模型管理"/>
+                    </NavigationViewItem.Content>
+                </NavigationViewItem>
+            </NavigationView.MenuItems>
+
+            <!-- 内容区域 -->
+            <Frame x:Name="ContentFrame" Margin="0"/>
+        </NavigationView>
+    </Grid>
+</Window>

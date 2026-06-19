@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/PhotoCuller.App.WinUI/PhotoCuller.App.WinUI.csproj" />
+    <Project Path="src/PhotoCuller.Core/PhotoCuller.Core.csproj" />
+    <Project Path="src/PhotoCuller.Infrastructure/PhotoCuller.Infrastructure.csproj" />
+    <Project Path="src/PhotoCuller.Tests/PhotoCuller.Tests.csproj" />
+  </Folder>
+</Solution>

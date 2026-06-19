@@ -1,0 +1,9 @@
+<Page
+    x:Class="PhotoCuller.App.WinUI.Views.Pages.AiModelsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid>
+        <TextBlock Text="AI 模型管理" Style="{StaticResource TitleTextBlockStyle}"
+                   VerticalAlignment="Center" HorizontalAlignment="Center"/>
+    </Grid>
+</Page>

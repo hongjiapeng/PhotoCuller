@@ -1,0 +1,28 @@
+<Project>
+  <PropertyGroup>
+    <!-- Target framework -->
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <WarningsAsErrors />
+
+    <!-- Assembly metadata -->
+    <Company>PhotoCuller</Company>
+    <Product>PhotoCuller</Product>
+    <Copyright>Copyright © 2025 PhotoCuller</Copyright>
+
+    <!-- Reproducible builds -->
+    <Deterministic>true</Deterministic>
+
+    <!-- Analyzers -->
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+  </PropertyGroup>
+
+  <!-- Core / Infrastructure: no Windows UI dependency -->
+  <PropertyGroup Condition="$(MSBuildProjectName.Contains('.Core')) Or $(MSBuildProjectName.Contains('.Infrastructure')) Or $(MSBuildProjectName.Contains('.Tests'))">
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+</Project>
