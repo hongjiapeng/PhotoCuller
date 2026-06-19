@@ -24,6 +24,9 @@ public interface IPhotoRepository
     Task UpdateAsync(PhotoItem photo, CancellationToken ct = default);
     Task DeleteAsync(Guid id, CancellationToken ct = default);
 
+    /// <summary>Deletes ALL photos from the table. Used before a full re-scan.</summary>
+    Task DeleteAllAsync(CancellationToken ct = default);
+
     /// <summary>Raw SQL escape hatch: returns paths that need to be re-scanned based on file path and modified time.</summary>
     Task<IReadOnlyList<string>> GetPathsNeedingRescanAsync(
         IEnumerable<(string Path, DateTime ModifiedTime)> candidates,

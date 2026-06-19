@@ -158,6 +158,11 @@ public sealed partial class MainViewModel : ObservableObject
             AllPhotos.Clear();
             Groups.Clear();
 
+            // Clear DB so the incremental-scan filter starts fresh.
+            // (Without this, photos already in DB are skipped and 0 are returned.)
+            await _groupRepo.DeleteAllAsync(_scanCts.Token);
+            await _photoRepo.DeleteAllAsync(_scanCts.Token);
+
             // ── Phase 1: scan + metadata + hashes ────────────────────────────
             ScanProgress = new Core.Models.ScanProgress(ScanPhase.Enumerating, 0, 0,
                 Message: "扫描目录...");

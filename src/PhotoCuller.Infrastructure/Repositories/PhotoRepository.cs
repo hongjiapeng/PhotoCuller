@@ -107,6 +107,9 @@ public sealed class PhotoRepository : IPhotoRepository
             .ExecuteDeleteAsync(ct);
     }
 
+    public async Task DeleteAllAsync(CancellationToken ct = default)
+        => await _db.Photos.ExecuteDeleteAsync(ct);
+
     /// <summary>
     /// Raw SQL escape hatch: returns paths that need rescanning
     /// (file not in DB, or ModifiedTime is newer than last scan).
