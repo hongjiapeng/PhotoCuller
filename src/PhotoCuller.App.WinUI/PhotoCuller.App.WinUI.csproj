@@ -1,5 +1,44 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
+    <!--
+      When building with the standalone dotnet CLI, MSBuildExtensionsPath points to the .NET SDK
+      directory which does not contain the VS AppxPackage MSBuild tasks required by WinAppSDK.
+      Override AppxMSBuildToolsPath to resolve the tasks from the local VS installation instead.
+      This condition is a no-op when building from inside Visual Studio or a VS Developer shell.
+    -->
+    <AppxMSBuildToolsPath Condition="
+        '$(AppxMSBuildToolsPath)' == '' And
+        !Exists('$(MSBuildExtensionsPath)\Microsoft\VisualStudio\v$(VisualStudioVersion)\AppxPackage\Microsoft.Build.Packaging.Pri.Tasks.dll') And
+        Exists('C:\Program Files\Microsoft Visual Studio\18\Enterprise\MSBuild\Microsoft\VisualStudio\v18.0\AppxPackage\')"
+      >C:\Program Files\Microsoft Visual Studio\18\Enterprise\MSBuild\Microsoft\VisualStudio\v18.0\AppxPackage\</AppxMSBuildToolsPath>
+    <AppxMSBuildToolsPath Condition="
+        '$(AppxMSBuildToolsPath)' == '' And
+        !Exists('$(MSBuildExtensionsPath)\Microsoft\VisualStudio\v$(VisualStudioVersion)\AppxPackage\Microsoft.Build.Packaging.Pri.Tasks.dll') And
+        Exists('C:\Program Files\Microsoft Visual Studio\18\Professional\MSBuild\Microsoft\VisualStudio\v18.0\AppxPackage\')"
+      >C:\Program Files\Microsoft Visual Studio\18\Professional\MSBuild\Microsoft\VisualStudio\v18.0\AppxPackage\</AppxMSBuildToolsPath>
+    <AppxMSBuildToolsPath Condition="
+        '$(AppxMSBuildToolsPath)' == '' And
+        !Exists('$(MSBuildExtensionsPath)\Microsoft\VisualStudio\v$(VisualStudioVersion)\AppxPackage\Microsoft.Build.Packaging.Pri.Tasks.dll') And
+        Exists('C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Microsoft\VisualStudio\v18.0\AppxPackage\')"
+      >C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Microsoft\VisualStudio\v18.0\AppxPackage\</AppxMSBuildToolsPath>
+    <AppxMSBuildToolsPath Condition="
+        '$(AppxMSBuildToolsPath)' == '' And
+        !Exists('$(MSBuildExtensionsPath)\Microsoft\VisualStudio\v$(VisualStudioVersion)\AppxPackage\Microsoft.Build.Packaging.Pri.Tasks.dll') And
+        Exists('C:\Program Files\Microsoft Visual Studio\17\Enterprise\MSBuild\Microsoft\VisualStudio\v17.0\AppxPackage\')"
+      >C:\Program Files\Microsoft Visual Studio\17\Enterprise\MSBuild\Microsoft\VisualStudio\v17.0\AppxPackage\</AppxMSBuildToolsPath>
+    <AppxMSBuildToolsPath Condition="
+        '$(AppxMSBuildToolsPath)' == '' And
+        !Exists('$(MSBuildExtensionsPath)\Microsoft\VisualStudio\v$(VisualStudioVersion)\AppxPackage\Microsoft.Build.Packaging.Pri.Tasks.dll') And
+        Exists('C:\Program Files\Microsoft Visual Studio\17\Professional\MSBuild\Microsoft\VisualStudio\v17.0\AppxPackage\')"
+      >C:\Program Files\Microsoft Visual Studio\17\Professional\MSBuild\Microsoft\VisualStudio\v17.0\AppxPackage\</AppxMSBuildToolsPath>
+    <AppxMSBuildToolsPath Condition="
+        '$(AppxMSBuildToolsPath)' == '' And
+        !Exists('$(MSBuildExtensionsPath)\Microsoft\VisualStudio\v$(VisualStudioVersion)\AppxPackage\Microsoft.Build.Packaging.Pri.Tasks.dll') And
+        Exists('C:\Program Files\Microsoft Visual Studio\17\Community\MSBuild\Microsoft\VisualStudio\v17.0\AppxPackage\')"
+      >C:\Program Files\Microsoft Visual Studio\17\Community\MSBuild\Microsoft\VisualStudio\v17.0\AppxPackage\</AppxMSBuildToolsPath>
+  </PropertyGroup>
+
+  <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <RootNamespace>PhotoCuller.App.WinUI</RootNamespace>
     <AssemblyName>PhotoCuller</AssemblyName>

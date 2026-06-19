@@ -32,40 +32,56 @@ public partial class App : Application
 
     protected override async void OnLaunched(LaunchActivatedEventArgs args)
     {
-        _host = CreateHost();
-        await _host.StartAsync();
-
-        // Initialise database (applies EF migrations + SQLite PRAGMAs)
-        using (var scope = _host.Services.CreateScope())
+        try
         {
-            var initializer = scope.ServiceProvider
-                .GetRequiredService<PhotoCuller.Infrastructure.Database.DatabaseInitializer>();
-            await initializer.InitializeAsync();
+            _host = CreateHost();
+            await _host.StartAsync();
+
+            // Initialise database
+            using (var scope = _host.Services.CreateScope())
+            {
+                var initializer = scope.ServiceProvider
+                    .GetRequiredService<PhotoCuller.Infrastructure.Database.DatabaseInitializer>();
+                await initializer.InitializeAsync();
+            }
+
+            // Restore last directory
+            var settings = await _host.Services
+                .GetRequiredService<ISettingsRepository>()
+                .LoadAsync();
+
+            var mainVm = _host.Services.GetRequiredService<MainViewModel>();
+            if (settings.RestoreLastDirectoryOnStartup
+                && !string.IsNullOrEmpty(settings.LastSelectedDirectory)
+                && Directory.Exists(settings.LastSelectedDirectory))
+            {
+                mainVm.SelectedDirectory = settings.LastSelectedDirectory;
+            }
+
+            // Create and show the window FIRST
+            _mainWindow = _host.Services.GetRequiredService<MainWindow>();
+            _mainWindow.Activate();
+
+            // Apply theme AFTER window is visible
+            try
+            {
+                var themeService = _host.Services.GetRequiredService<IThemeService>();
+                themeService.ApplyTheme(settings.Theme);
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Theme apply failed (non-fatal)");
+            }
+
+            Log.Information("PhotoCuller started. Directory: {Dir}",
+                mainVm.SelectedDirectory);
         }
-
-        _mainWindow = _host.Services.GetRequiredService<MainWindow>();
-
-        // Restore last directory and apply saved theme
-        var settings = await _host.Services
-            .GetRequiredService<ISettingsRepository>()
-            .LoadAsync();
-
-        var mainVm = _host.Services.GetRequiredService<MainViewModel>();
-        if (settings.RestoreLastDirectoryOnStartup
-            && !string.IsNullOrEmpty(settings.LastSelectedDirectory)
-            && Directory.Exists(settings.LastSelectedDirectory))
+        catch (Exception ex)
         {
-            mainVm.SelectedDirectory = settings.LastSelectedDirectory;
+            Log.Fatal(ex, "OnLaunched failed");
+            // Re-throw so WinUI can show an error dialog
+            throw;
         }
-
-        // Apply saved theme
-        var themeService = _host.Services.GetRequiredService<IThemeService>();
-        themeService.ApplyTheme(settings.Theme);
-
-        _mainWindow.Activate();
-
-        Log.Information("PhotoCuller started. Directory: {Dir}",
-            mainVm.SelectedDirectory);
     }
 
     // ── Exception handlers ────────────────────────────────────────────────────
