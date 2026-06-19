@@ -12,7 +12,7 @@ public sealed partial class MainWindow : Window
         InitializeComponent();
         ExtendsContentIntoTitleBar = true;
 
-        // 默认导航到照片库
+        // Navigate to the photo library by default
         NavView.SelectedItem = NavView.MenuItems[0];
         ContentFrame.Navigate(typeof(LibraryPage));
     }

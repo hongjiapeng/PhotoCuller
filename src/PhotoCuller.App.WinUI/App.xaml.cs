@@ -46,7 +46,7 @@ public partial class App : Application
                 // UI
                 services.AddSingleton<MainWindow>();
 
-                // TODO: 后续阶段注册 Core / Infrastructure 服务
+                // TODO: Register Core / Infrastructure services in subsequent phases
             })
             .Build();
 }
