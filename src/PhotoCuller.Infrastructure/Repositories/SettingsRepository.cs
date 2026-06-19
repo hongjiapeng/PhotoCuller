@@ -33,6 +33,14 @@ public sealed class SettingsRepository : ISettingsRepository, IDisposable
         _settingsPath = Path.Combine(dir, "settings.json");
     }
 
+    /// <summary>Internal constructor for testing — uses a custom directory.</summary>
+    internal SettingsRepository(ILogger<SettingsRepository> logger, string customDir)
+    {
+        _logger = logger;
+        Directory.CreateDirectory(customDir);
+        _settingsPath = Path.Combine(customDir, "settings.json");
+    }
+
     public async Task<AppSettings> LoadAsync(CancellationToken ct = default)
     {
         if (!File.Exists(_settingsPath))

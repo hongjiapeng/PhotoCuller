@@ -5,6 +5,13 @@
     <AssemblyName>PhotoCuller.Infrastructure</AssemblyName>
   </PropertyGroup>
 
+  <!-- Allow test project to access internal members -->
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>PhotoCuller.Tests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\PhotoCuller.Core\PhotoCuller.Core.csproj" />
   </ItemGroup>
