@@ -6,6 +6,7 @@ using PhotoCuller.Core.Interfaces.Storage;
 using PhotoCuller.Infrastructure.Database;
 using PhotoCuller.Infrastructure.Repositories;
 using PhotoCuller.Infrastructure.Scanning;
+using PhotoCuller.Infrastructure.ThumbnailCache;
 
 namespace PhotoCuller.Infrastructure.Configuration;
 
@@ -47,6 +48,9 @@ public static class InfrastructureServiceExtensions
         services.AddTransient<IPhotoMetadataReader, PhotoMetadataReader>();
         services.AddTransient<IImageDecoder, ImageDecoder>();
         services.AddTransient<IPhotoScanner, PhotoScanner>();
+
+        // Thumbnail cache
+        services.AddSingleton<IThumbnailService, ThumbnailService>();
 
         return services;
     }
