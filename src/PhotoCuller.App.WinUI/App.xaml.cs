@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.UI.Xaml;
 using PhotoCuller.App.WinUI.Views;
+using PhotoCuller.Core.Models;
 using PhotoCuller.Infrastructure.Configuration;
 using Serilog;
 
@@ -50,8 +51,11 @@ public partial class App : Application
                     "PhotoCuller", "photoculler.db");
                 Directory.CreateDirectory(Path.GetDirectoryName(dbPath)!);
 
-                // Infrastructure: DbContext + Repositories
+                // Infrastructure: DbContext + Repositories + Scanning
                 services.AddInfrastructure(dbPath);
+
+                // AppSettings (loaded from settings.json, used by PhotoScanner etc.)
+                services.AddOptions<AppSettings>();
 
                 // UI
                 services.AddSingleton<MainWindow>();

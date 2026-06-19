@@ -1,9 +1,11 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using PhotoCuller.Core.Interfaces.Scanning;
 using PhotoCuller.Core.Interfaces.Storage;
 using PhotoCuller.Infrastructure.Database;
 using PhotoCuller.Infrastructure.Repositories;
+using PhotoCuller.Infrastructure.Scanning;
 
 namespace PhotoCuller.Infrastructure.Configuration;
 
@@ -39,6 +41,12 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IAiModelProfileRepository, AiModelProfileRepository>();
         services.AddScoped<IFileOperationLogRepository, FileOperationLogRepository>();
         services.AddSingleton<ISettingsRepository, SettingsRepository>();
+
+        // Scanning
+        services.AddSingleton<IScanProgressService, ScanProgressService>();
+        services.AddTransient<IPhotoMetadataReader, PhotoMetadataReader>();
+        services.AddTransient<IImageDecoder, ImageDecoder>();
+        services.AddTransient<IPhotoScanner, PhotoScanner>();
 
         return services;
     }
