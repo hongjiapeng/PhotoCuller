@@ -1,20 +1,23 @@
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Imaging;
 using PhotoCuller.App.WinUI.ViewModels;
 using PhotoCuller.Core.Enums;
+using PhotoCuller.Core.Interfaces.Ai;
 using PhotoCuller.Core.Interfaces.Platform;
 
 namespace PhotoCuller.App.WinUI.Views;
 
 public sealed partial class PhotoDetailPanel : UserControl
 {
+    private IOpenFileLocationService? _openLocation;
+    private IAiExplanationService?   _aiExplanation;
+
     public static readonly DependencyProperty SelectedPhotoProperty =
         DependencyProperty.Register(nameof(SelectedPhoto), typeof(PhotoItemViewModel),
             typeof(PhotoDetailPanel),
             new PropertyMetadata(null, OnSelectedPhotoChanged));
-
-    private IOpenFileLocationService? _openLocation;
 
     public PhotoDetailPanel()
     {
@@ -42,14 +45,9 @@ public sealed partial class PhotoDetailPanel : UserControl
 
         // Preview image
         if (!string.IsNullOrEmpty(vm.ThumbnailPath) && File.Exists(vm.ThumbnailPath))
-        {
-            var bmp = new BitmapImage(new Uri(vm.ThumbnailPath));
-            PreviewImage.Source = bmp;
-        }
+            PreviewImage.Source = new BitmapImage(new Uri(vm.ThumbnailPath));
         else
-        {
             PreviewImage.Source = null;
-        }
 
         FileNameLabel.Text = vm.FileName;
 
@@ -74,27 +72,23 @@ public sealed partial class PhotoDetailPanel : UserControl
         InfoModified.Text   = vm.ModifiedTime ?? "—";
         InfoPath.Text       = vm.FilePath;
 
-        // Recommendation reason (simple algorithm-based text)
-        if (vm.IsKeep && vm.OverallScore.HasValue)
-        {
-            ReasonText.Text = BuildRecommendationReason(vm);
-            ReasonText.Visibility  = Visibility.Visible;
-            ReasonHeader.Visibility = Visibility.Visible;
-        }
-        else
-        {
-            ReasonText.Visibility  = Visibility.Collapsed;
-            ReasonHeader.Visibility = Visibility.Collapsed;
-        }
+        // Show algorithm-based reason by default; user can click to get AI reason
+        ReasonText.Text = BuildAlgorithmicReason(vm);
+        ReasonText.Visibility   = Visibility.Visible;
+        ReasonHeader.Visibility = Visibility.Visible;
+
+        // Show/hide AI button depending on whether AI is configured
+        BtnAiReason.Visibility = Visibility.Visible;
+        BtnAiReason.IsEnabled  = true;
+        AiProgressRing.Visibility = Visibility.Collapsed;
     }
 
-    private static string BuildRecommendationReason(PhotoItemViewModel vm)
+    private static string BuildAlgorithmicReason(PhotoItemViewModel vm)
     {
         var reasons = new List<string>();
-
-        if (vm.SharpnessScore >= 80) reasons.Add("清晰度高");
-        if (vm.ExposureScore >= 80) reasons.Add("曝光正常");
-        if (vm.ContrastScore >= 75) reasons.Add("对比度好");
+        if (vm.SharpnessScore  >= 80) reasons.Add("清晰度高");
+        if (vm.ExposureScore   >= 80) reasons.Add("曝光正常");
+        if (vm.ContrastScore   >= 75) reasons.Add("对比度好");
         if (vm.ResolutionScore >= 85) reasons.Add("分辨率高");
         if (vm.CompositionScore >= 75) reasons.Add("构图较好");
 
@@ -110,6 +104,8 @@ public sealed partial class PhotoDetailPanel : UserControl
         >= 1_024         => $"{bytes / 1_024.0:F0} KB",
         _                => $"{bytes} B",
     };
+
+    // ── Event handlers ────────────────────────────────────────────────────────
 
     private void BtnOpenLocation_Click(object sender, RoutedEventArgs e)
     {
@@ -129,5 +125,47 @@ public sealed partial class PhotoDetailPanel : UserControl
     {
         if (SelectedPhoto is null) return;
         SelectedPhoto.Model.RecommendationStatus = RecommendationStatus.ToDelete;
+    }
+
+    private async void BtnAiReason_Click(object sender, RoutedEventArgs e)
+    {
+        if (SelectedPhoto is null) return;
+
+        BtnAiReason.IsEnabled     = false;
+        AiProgressRing.Visibility = Visibility.Visible;
+        ReasonText.Text           = "AI 正在分析，请稍候...";
+
+        try
+        {
+            _aiExplanation ??= App.Services.GetService(typeof(IAiExplanationService))
+                as IAiExplanationService;
+
+            if (_aiExplanation is null)
+            {
+                ReasonText.Text = "未找到 AI 解释服务，请检查配置。";
+                return;
+            }
+
+            // Build a minimal group from the current photo for the prompt
+            // (Full group context is only available on the similar-groups page;
+            //  here we pass a single-photo list so the algorithm prompt is used
+            //  when the photo is not in a group.)
+            var group = new List<PhotoCuller.Core.Models.PhotoItem>
+                { SelectedPhoto.Model };
+
+            var reason = await _aiExplanation.GenerateRecommendationReasonAsync(
+                SelectedPhoto.Model, group);
+
+            ReasonText.Text = reason;
+        }
+        catch (Exception ex)
+        {
+            ReasonText.Text = $"AI 分析失败：{ex.Message}";
+        }
+        finally
+        {
+            BtnAiReason.IsEnabled     = true;
+            AiProgressRing.Visibility = Visibility.Collapsed;
+        }
     }
 }

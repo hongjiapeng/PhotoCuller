@@ -38,6 +38,22 @@
                         Padding="8,4" Click="BtnMarkDelete_Click">
                     <FontIcon Glyph="&#xE74D;" FontSize="14"/>
                 </Button>
+
+                <!-- AI reason button -->
+                <Button x:Name="BtnAiReason"
+                        ToolTipService.ToolTip="用 AI 生成推荐理由（需配置 AI 模型）"
+                        Padding="8,4" Click="BtnAiReason_Click">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <FontIcon Glyph="&#xE9D9;" FontSize="13"/>
+                        <TextBlock Text="AI 分析" FontSize="12"/>
+                    </StackPanel>
+                </Button>
+
+                <!-- Progress ring shown while AI is thinking -->
+                <ProgressRing x:Name="AiProgressRing"
+                              Width="18" Height="18"
+                              IsActive="True"
+                              Visibility="Collapsed"/>
             </StackPanel>
 
             <!-- Score section -->

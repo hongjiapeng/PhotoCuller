@@ -162,25 +162,43 @@ public sealed partial class AiModelsViewModel : ObservableObject
 
         try
         {
-            // v1: basic HTTP reachability check for cloud models
-            if (SelectedModel.Model.ProviderType != ProviderType.Local
-                && !string.IsNullOrEmpty(SelectedModel.Model.BaseUrl))
+            // Read from the ViewModel (current UI values), NOT from Model (saved values)
+            var isLocal = SelectedModel.ProviderType == ProviderType.Local;
+            var baseUrl = SelectedModel.BaseUrl?.Trim();
+
+            if (!isLocal && !string.IsNullOrEmpty(baseUrl))
             {
+                // Normalise: strip trailing slash, then append /models
+                var modelsUrl = baseUrl.TrimEnd('/') + "/models";
+
                 using var http = new System.Net.Http.HttpClient
                 {
                     Timeout = TimeSpan.FromSeconds(10)
                 };
-                var resp = await http.GetAsync(SelectedModel.Model.BaseUrl, ct);
+
+                // Ollama & OpenAI-compatible servers return 200 on GET /v1/models
+                var resp = await http.GetAsync(modelsUrl, ct);
                 StatusMessage = resp.IsSuccessStatusCode
-                    ? $"✓ 连接成功 ({(int)resp.StatusCode})"
-                    : $"⚠ 服务响应 {(int)resp.StatusCode}";
+                    ? $"✓ 连接成功 ({(int)resp.StatusCode}) — {modelsUrl}"
+                    : $"⚠ 服务响应 {(int)resp.StatusCode} — 检查 Base URL 是否正确";
+            }
+            else if (isLocal)
+            {
+                var modelPath = SelectedModel.LocalModelPath?.Trim();
+                if (string.IsNullOrEmpty(modelPath))
+                {
+                    StatusMessage = "✗ 未填写模型路径";
+                }
+                else
+                {
+                    StatusMessage = File.Exists(modelPath)
+                        ? $"✓ 模型文件存在：{modelPath}"
+                        : $"✗ 模型文件不存在，请检查路径：{modelPath}";
+                }
             }
             else
             {
-                StatusMessage = "本地模型：检查路径是否存在...";
-                StatusMessage = File.Exists(SelectedModel.Model.LocalModelPath)
-                    ? "✓ 模型文件存在"
-                    : "✗ 模型文件不存在，请检查路径";
+                StatusMessage = "✗ Base URL 为空，请先填写后再测试";
             }
         }
         catch (Exception ex)
