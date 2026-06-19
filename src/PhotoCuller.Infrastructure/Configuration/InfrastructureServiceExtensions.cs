@@ -61,6 +61,7 @@ public static class InfrastructureServiceExtensions
         services.AddTransient<IHashService, HashService>();
         services.AddTransient<IPerceptualHashService, PerceptualHashService>();
         services.AddTransient<ISimilarityService, SimilarityService>();
+        services.AddTransient<IDuplicateGroupingService, DuplicateGroupingService>();
 
         // Image scoring — individual analyzers
         services.AddTransient<ISharpnessAnalyzer, SharpnessAnalyzer>();
