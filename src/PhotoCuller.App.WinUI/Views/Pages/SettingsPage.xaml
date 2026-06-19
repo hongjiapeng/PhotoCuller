@@ -1,9 +1,328 @@
 <Page
     x:Class="PhotoCuller.App.WinUI.Views.Pages.SettingsPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:PhotoCuller.App.WinUI.Views"
+    xmlns:vm="using:PhotoCuller.App.WinUI.ViewModels"
+    xmlns:conv="using:PhotoCuller.App.WinUI.Converters"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <Page.Resources>
+        <conv:BoolToVisibilityConverter x:Key="BoolToVis"/>
+        <!-- Section header style -->
+        <Style x:Key="SectionHeader" TargetType="TextBlock">
+            <Setter Property="FontSize"     Value="13"/>
+            <Setter Property="FontWeight"   Value="SemiBold"/>
+            <Setter Property="Margin"       Value="0,18,0,8"/>
+            <Setter Property="Foreground"
+                    Value="{ThemeResource AccentAAFillColorDefaultBrush}"/>
+        </Style>
+        <!-- Row label style -->
+        <Style x:Key="RowLabel" TargetType="TextBlock">
+            <Setter Property="FontSize"          Value="13"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Width"             Value="180"/>
+        </Style>
+        <!-- Sub-description style -->
+        <Style x:Key="RowDesc" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Opacity"  Value="0.5"/>
+        </Style>
+    </Page.Resources>
+
     <Grid>
-        <TextBlock Text="设置" Style="{StaticResource TitleTextBlockStyle}"
-                   VerticalAlignment="Center" HorizontalAlignment="Center"/>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Page title -->
+        <Grid Grid.Row="0" Padding="20,14,20,8">
+            <TextBlock Style="{StaticResource SubtitleTextBlockStyle}" Text="设置"/>
+        </Grid>
+
+        <!-- Content scroll -->
+        <ScrollViewer Grid.Row="1" Padding="20,0,20,16"
+                      VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="0" MaxWidth="640">
+
+                <!-- ── GENERAL ─────────────────────────────────────────── -->
+                <TextBlock Style="{StaticResource SectionHeader}" Text="通用"/>
+
+                <StackPanel Spacing="10">
+                    <!-- Theme -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="180"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                            <TextBlock Style="{StaticResource RowLabel}" Text="主题"/>
+                            <TextBlock Style="{StaticResource RowDesc}" Text="深色 / 浅色 / 跟随系统"/>
+                        </StackPanel>
+                        <ComboBox Grid.Column="1" x:Name="ThemeCombo"
+                                  SelectedValue="{x:Bind ViewModel.ThemeValue, Mode=TwoWay}"
+                                  SelectedValuePath="Tag">
+                            <ComboBoxItem Content="深色" Tag="Dark"/>
+                            <ComboBoxItem Content="浅色" Tag="Light"/>
+                            <ComboBoxItem Content="跟随系统" Tag="Default"/>
+                        </ComboBox>
+                    </Grid>
+
+                    <!-- Language -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="180"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Style="{StaticResource RowLabel}"
+                                   Text="语言" VerticalAlignment="Center"/>
+                        <ComboBox Grid.Column="1"
+                                  SelectedValue="{x:Bind ViewModel.LanguageValue, Mode=TwoWay}"
+                                  SelectedValuePath="Tag">
+                            <ComboBoxItem Content="简体中文" Tag="zh-CN"/>
+                            <ComboBoxItem Content="English" Tag="en-US"/>
+                        </ComboBox>
+                    </Grid>
+
+                    <!-- Restore last dir -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="启动时恢复上次目录" FontSize="13"/>
+                            <TextBlock Style="{StaticResource RowDesc}"
+                                       Text="下次打开时自动加载上次选择的照片目录"/>
+                        </StackPanel>
+                        <ToggleSwitch Grid.Column="1"
+                                      IsOn="{x:Bind ViewModel.RestoreLastDir, Mode=TwoWay}"
+                                      OnContent="" OffContent=""/>
+                    </Grid>
+                </StackPanel>
+
+                <!-- ── SCAN ──────────────────────────────────────────────── -->
+                <TextBlock Style="{StaticResource SectionHeader}" Text="扫描设置"/>
+
+                <StackPanel Spacing="10">
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <StackPanel><TextBlock Text="递归扫描子目录" FontSize="13"/>
+                        <TextBlock Style="{StaticResource RowDesc}" Text="扫描时包含所有子文件夹"/></StackPanel>
+                        <ToggleSwitch Grid.Column="1" IsOn="{x:Bind ViewModel.RecursiveScan, Mode=TwoWay}" OnContent="" OffContent=""/>
+                    </Grid>
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <StackPanel><TextBlock Text="跳过隐藏文件夹" FontSize="13"/>
+                        <TextBlock Style="{StaticResource RowDesc}" Text="忽略以 . 开头或标记为隐藏的文件夹"/></StackPanel>
+                        <ToggleSwitch Grid.Column="1" IsOn="{x:Bind ViewModel.SkipHiddenFolders, Mode=TwoWay}" OnContent="" OffContent=""/>
+                    </Grid>
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <StackPanel><TextBlock Text="跳过系统文件夹" FontSize="13"/>
+                        <TextBlock Style="{StaticResource RowDesc}" Text="忽略系统属性的文件夹"/></StackPanel>
+                        <ToggleSwitch Grid.Column="1" IsOn="{x:Bind ViewModel.SkipSystemFolders, Mode=TwoWay}" OnContent="" OffContent=""/>
+                    </Grid>
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <StackPanel><TextBlock Text="读取 EXIF 信息" FontSize="13"/>
+                        <TextBlock Style="{StaticResource RowDesc}" Text="读取拍摄时间、相机型号等元数据"/></StackPanel>
+                        <ToggleSwitch Grid.Column="1" IsOn="{x:Bind ViewModel.ReadExif, Mode=TwoWay}" OnContent="" OffContent=""/>
+                    </Grid>
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <StackPanel><TextBlock Text="生成缩略图" FontSize="13"/>
+                        <TextBlock Style="{StaticResource RowDesc}" Text="扫描时预生成缩略图以加快浏览速度"/></StackPanel>
+                        <ToggleSwitch Grid.Column="1" IsOn="{x:Bind ViewModel.GenerateThumbnails, Mode=TwoWay}" OnContent="" OffContent=""/>
+                    </Grid>
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="180"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <StackPanel><TextBlock Style="{StaticResource RowLabel}" Text="最大文件大小 (MB)"/>
+                        <TextBlock Style="{StaticResource RowDesc}" Text="超过此大小的文件将被跳过"/></StackPanel>
+                        <NumberBox Grid.Column="1" Minimum="1" Maximum="10000" SpinButtonPlacementMode="Compact"
+                                   Value="{x:Bind ViewModel.MaxFileSizeMb, Mode=TwoWay}"/>
+                    </Grid>
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="180"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <StackPanel><TextBlock Style="{StaticResource RowLabel}" Text="扫描线程数"/>
+                        <TextBlock Style="{StaticResource RowDesc}" Text="0 = 自动（CPU核心数-1）"/></StackPanel>
+                        <NumberBox Grid.Column="1" Minimum="0" Maximum="32" SpinButtonPlacementMode="Compact"
+                                   Value="{x:Bind ViewModel.ScanThreadCount, Mode=TwoWay}"/>
+                    </Grid>
+                </StackPanel>
+
+                <!-- ── SCORING WEIGHTS ──────────────────────────────────── -->
+                <TextBlock Style="{StaticResource SectionHeader}" Text="评分权重"/>
+
+                <!-- Weight total indicator -->
+                <InfoBar x:Name="WeightInfoBar"
+                         IsOpen="True" IsClosable="False"
+                         Message="{x:Bind ViewModel.WeightTotalLabel, Mode=OneWay}"
+                         Severity="Warning"
+                         Margin="0,0,0,10"/>
+
+                <StackPanel Spacing="12">
+                    <local:WeightRow x:Name="WSharpness"   Label="清晰度"
+                                     Value="{x:Bind ViewModel.SharpnessPercent,   Mode=TwoWay}"/>
+                    <local:WeightRow x:Name="WExposure"    Label="曝光"
+                                     Value="{x:Bind ViewModel.ExposurePercent,    Mode=TwoWay}"/>
+                    <local:WeightRow x:Name="WContrast"    Label="对比度"
+                                     Value="{x:Bind ViewModel.ContrastPercent,    Mode=TwoWay}"/>
+                    <local:WeightRow x:Name="WNoise"       Label="噪点"
+                                     Value="{x:Bind ViewModel.NoisePercent,       Mode=TwoWay}"/>
+                    <local:WeightRow x:Name="WResolution"  Label="分辨率"
+                                     Value="{x:Bind ViewModel.ResolutionPercent,  Mode=TwoWay}"/>
+                    <local:WeightRow x:Name="WComposition" Label="构图"
+                                     Value="{x:Bind ViewModel.CompositionPercent, Mode=TwoWay}"/>
+                    <local:WeightRow x:Name="WColor"       Label="色彩"
+                                     Value="{x:Bind ViewModel.ColorPercent,       Mode=TwoWay}"/>
+
+                    <Button Content="恢复默认权重"
+                            Command="{x:Bind ViewModel.ResetWeightsCommand}"/>
+                </StackPanel>
+
+                <!-- ── SIMILAR ─────────────────────────────────────────── -->
+                <TextBlock Style="{StaticResource SectionHeader}" Text="相似照片设置"/>
+                <StackPanel Spacing="10">
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="180"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <StackPanel><TextBlock Style="{StaticResource RowLabel}" Text="高度相似阈值"/>
+                        <TextBlock Style="{StaticResource RowDesc}" Text="汉明距离 ≤ 此值视为高度相似"/></StackPanel>
+                        <NumberBox Grid.Column="1" Minimum="1" Maximum="30" SpinButtonPlacementMode="Compact"
+                                   Value="{x:Bind ViewModel.SimilarityThresholdHigh, Mode=TwoWay}"/>
+                    </Grid>
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="180"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <StackPanel><TextBlock Style="{StaticResource RowLabel}" Text="可能相似阈值"/>
+                        <TextBlock Style="{StaticResource RowDesc}" Text="汉明距离 ≤ 此值视为可能相似"/></StackPanel>
+                        <NumberBox Grid.Column="1" Minimum="1" Maximum="64" SpinButtonPlacementMode="Compact"
+                                   Value="{x:Bind ViewModel.SimilarityThresholdPossible, Mode=TwoWay}"/>
+                    </Grid>
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="180"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <StackPanel><TextBlock Style="{StaticResource RowLabel}" Text="连拍时间窗口（秒）"/>
+                        <TextBlock Style="{StaticResource RowDesc}" Text="拍摄间隔在此时间内视为连拍"/></StackPanel>
+                        <NumberBox Grid.Column="1" Minimum="1" Maximum="300" SpinButtonPlacementMode="Compact"
+                                   Value="{x:Bind ViewModel.BurstTimeWindowSeconds, Mode=TwoWay}"/>
+                    </Grid>
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <StackPanel><TextBlock Text="使用拍摄时间辅助分组" FontSize="13"/>
+                        <TextBlock Style="{StaticResource RowDesc}" Text="结合 EXIF 拍摄时间识别连拍组"/></StackPanel>
+                        <ToggleSwitch Grid.Column="1" IsOn="{x:Bind ViewModel.UseCaptureTimeForGrouping, Mode=TwoWay}" OnContent="" OffContent=""/>
+                    </Grid>
+                </StackPanel>
+
+                <!-- ── FILE MANAGEMENT ─────────────────────────────────── -->
+                <TextBlock Style="{StaticResource SectionHeader}" Text="文件管理"/>
+                <StackPanel Spacing="10">
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="180"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <StackPanel><TextBlock Style="{StaticResource RowLabel}" Text="待删除目录名称"/>
+                        <TextBlock Style="{StaticResource RowDesc}" Text="在源目录旁创建该名称的文件夹"/></StackPanel>
+                        <TextBox Grid.Column="1" Text="{x:Bind ViewModel.ToDeleteFolderName, Mode=TwoWay}"/>
+                    </Grid>
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <StackPanel><TextBlock Text="保持原目录结构" FontSize="13"/>
+                        <TextBlock Style="{StaticResource RowDesc}" Text="移动时在待删除目录下保留相对路径"/></StackPanel>
+                        <ToggleSwitch Grid.Column="1" IsOn="{x:Bind ViewModel.PreserveFolderStructure, Mode=TwoWay}" OnContent="" OffContent=""/>
+                    </Grid>
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <StackPanel><TextBlock Text="移动前二次确认" FontSize="13"/>
+                        <TextBlock Style="{StaticResource RowDesc}" Text="批量移动操作需要弹窗确认"/></StackPanel>
+                        <ToggleSwitch Grid.Column="1" IsOn="{x:Bind ViewModel.ConfirmBeforeMove, Mode=TwoWay}" OnContent="" OffContent=""/>
+                    </Grid>
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <StackPanel><TextBlock Text="生成操作日志" FontSize="13"/>
+                        <TextBlock Style="{StaticResource RowDesc}" Text="记录每次文件移动操作，支持撤销"/></StackPanel>
+                        <ToggleSwitch Grid.Column="1" IsOn="{x:Bind ViewModel.GenerateOperationLog, Mode=TwoWay}" OnContent="" OffContent=""/>
+                    </Grid>
+                </StackPanel>
+
+                <!-- ── PRIVACY ─────────────────────────────────────────── -->
+                <TextBlock Style="{StaticResource SectionHeader}" Text="隐私设置"/>
+                <InfoBar IsOpen="True" IsClosable="False" Severity="Warning"
+                         Message="默认情况下，软件不会上传任何照片到云端。开启云端分析前请仔细阅读隐私说明。"
+                         Margin="0,0,0,10"/>
+                <StackPanel Spacing="10">
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <StackPanel><TextBlock Text="允许云端模型分析图片" FontSize="13"/>
+                        <TextBlock Style="{StaticResource RowDesc}" Text="启用后可将压缩图片发送给配置的云端 AI 模型"/></StackPanel>
+                        <ToggleSwitch Grid.Column="1" IsOn="{x:Bind ViewModel.AllowCloudImageAnalysis, Mode=TwoWay}" OnContent="" OffContent=""/>
+                    </Grid>
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <StackPanel><TextBlock Text="上传前压缩图片" FontSize="13"/>
+                        <TextBlock Style="{StaticResource RowDesc}" Text="减小上传体积，保护原图隐私"/></StackPanel>
+                        <ToggleSwitch Grid.Column="1" IsOn="{x:Bind ViewModel.CompressBeforeUpload, Mode=TwoWay}" OnContent="" OffContent=""/>
+                    </Grid>
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <StackPanel><TextBlock Text="仅上传缩略图" FontSize="13"/>
+                        <TextBlock Style="{StaticResource RowDesc}" Text="只上传低分辨率缩略图，不上传原图"/></StackPanel>
+                        <ToggleSwitch Grid.Column="1" IsOn="{x:Bind ViewModel.UploadThumbnailOnly, Mode=TwoWay}" OnContent="" OffContent=""/>
+                    </Grid>
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="180"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <StackPanel><TextBlock Style="{StaticResource RowLabel}" Text="上传最大边长 (px)"/>
+                        <TextBlock Style="{StaticResource RowDesc}" Text="上传图片缩放到此边长以内"/></StackPanel>
+                        <NumberBox Grid.Column="1" Minimum="128" Maximum="4096" SpinButtonPlacementMode="Compact"
+                                   Value="{x:Bind ViewModel.UploadMaxEdgePx, Mode=TwoWay}"/>
+                    </Grid>
+                </StackPanel>
+
+                <!-- ── CACHE ───────────────────────────────────────────── -->
+                <TextBlock Style="{StaticResource SectionHeader}" Text="缓存与存储"/>
+                <StackPanel Spacing="10">
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="180"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <StackPanel><TextBlock Style="{StaticResource RowLabel}" Text="最大缓存大小 (MB)"/>
+                        <TextBlock Style="{StaticResource RowDesc}" Text="缩略图缓存占用上限"/></StackPanel>
+                        <NumberBox Grid.Column="1" Minimum="256" Maximum="20480" SpinButtonPlacementMode="Compact"
+                                   Value="{x:Bind ViewModel.MaxCacheSizeMb, Mode=TwoWay}"/>
+                    </Grid>
+                    <Button Content="清理缩略图缓存" Click="ClearCache_Click"/>
+                </StackPanel>
+
+                <!-- ── LOGGING ─────────────────────────────────────────── -->
+                <TextBlock Style="{StaticResource SectionHeader}" Text="日志"/>
+                <StackPanel Spacing="10">
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="180"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <TextBlock Style="{StaticResource RowLabel}" Text="日志级别" VerticalAlignment="Center"/>
+                        <ComboBox Grid.Column="1"
+                                  SelectedValue="{x:Bind ViewModel.LogLevel, Mode=TwoWay}"
+                                  SelectedValuePath="Tag">
+                            <ComboBoxItem Content="Debug"       Tag="Debug"/>
+                            <ComboBoxItem Content="Information" Tag="Information"/>
+                            <ComboBoxItem Content="Warning"     Tag="Warning"/>
+                            <ComboBoxItem Content="Error"       Tag="Error"/>
+                        </ComboBox>
+                    </Grid>
+                    <Button Content="打开日志目录" Click="OpenLogDir_Click"/>
+                </StackPanel>
+
+                <Rectangle Height="24"/>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Save / Cancel bar -->
+        <Border Grid.Row="2" Padding="20,10"
+                BorderThickness="0,1,0,0"
+                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                Background="{ThemeResource LayerFillColorDefaultBrush}">
+            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                <Button Content="取消" Click="Cancel_Click"/>
+                <Button Content="保存设置"
+                        Style="{StaticResource AccentButtonStyle}"
+                        Command="{x:Bind ViewModel.SaveCommand}"/>
+            </StackPanel>
+        </Border>
     </Grid>
 </Page>
