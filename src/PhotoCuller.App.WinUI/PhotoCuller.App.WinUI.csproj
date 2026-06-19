@@ -4,9 +4,8 @@
     <RootNamespace>PhotoCuller.App.WinUI</RootNamespace>
     <AssemblyName>PhotoCuller</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Platforms>x86;x64;arm64</Platforms>
-    <RuntimeIdentifiers>win-x86;win-x64;win-arm64</RuntimeIdentifiers>
-    <PublishProfile>Properties\PublishProfiles\win10-$(Platform).pubxml</PublishProfile>
+    <Platforms>x64;arm64</Platforms>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <UseWinUI>true</UseWinUI>
     <!-- Unpackaged: direct .exe launch, no MSIX required -->
     <WindowsPackageType>None</WindowsPackageType>
@@ -27,5 +26,6 @@
     <PackageReference Include="Serilog.Extensions.Hosting" />
     <PackageReference Include="Serilog.Sinks.File" />
     <PackageReference Include="Serilog.Sinks.Debug" />
+    <PackageReference Include="Serilog.Settings.Configuration" />
   </ItemGroup>
 </Project>

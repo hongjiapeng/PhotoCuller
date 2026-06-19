@@ -28,15 +28,17 @@ public partial class App : Application
         _mainWindow.Activate();
     }
 
+    private static string LogPath => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "PhotoCuller", "logs", "log-.txt");
+
     private static IHost CreateHost() =>
         Host.CreateDefaultBuilder()
-            .UseSerilog((ctx, lc) => lc
-                .ReadFrom.Configuration(ctx.Configuration)
+            .UseSerilog((_, lc) => lc
+                .MinimumLevel.Debug()
                 .WriteTo.Debug()
                 .WriteTo.File(
-                    Path.Combine(
-                        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                        "PhotoCuller", "logs", "log-.txt"),
+                    LogPath,
                     rollingInterval: RollingInterval.Day,
                     retainedFileCountLimit: 14))
             .ConfigureServices(services =>
