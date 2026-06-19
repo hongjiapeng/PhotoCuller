@@ -25,17 +25,20 @@ Everything runs **100% locally**. No cloud uploads, no subscriptions, no API key
 | Time window + pHash | Burst-shot grouping |
 
 ### ⭐ Quality Scoring (0–100)
-| Dimension | Algorithm |
-|-----------|-----------|
-| Sharpness | Laplacian variance |
-| Exposure | Brightness histogram analysis |
-| Contrast | Luminance standard deviation |
-| Noise | Placeholder (interface reserved) |
-| Resolution | Megapixel scale |
-| Composition | Placeholder (interface reserved for SAMP-Net) |
-| Colour | HSV saturation distribution |
 
-Weights are configurable per-dimension (must sum to 100).
+All scoring is **algorithm-based** using OpenCvSharp — no model download or GPU required.
+
+| Dimension | Weight | Algorithm | Notes |
+|-----------|--------|-----------|-------|
+| **Sharpness** | 35% | Laplacian variance | Primary differentiator in a burst group |
+| **Exposure** | 20% | HSV V-channel histogram; penalises crushed blacks >15% and blown highlights >15% | Ideal mean brightness: 90–200 |
+| **Contrast** | 15% | Grayscale standard deviation | Ideal stddev: 35–90 |
+| **Noise** | 10% | Placeholder returning 70 — interface reserved for wavelet estimator | Will be replaced in a future release |
+| **Resolution** | 10% | Total megapixel count on a logarithmic scale | <0.5 MP → low; ≥8 MP → high |
+| **Composition** | 10% | Placeholder returning 65 — interface reserved for SAMP-Net | Will be replaced in a future release |
+| **Colour** | 0% | HSV S-channel mean saturation | Off by default; raise weight in Settings |
+
+Default weights sum to **100**. All weights are adjustable in Settings → Scoring Weights.
 
 ### 🗂️ Safe File Management
 - Moves photos to a **pending-delete folder** — never permanently deletes originals
@@ -44,9 +47,27 @@ Weights are configurable per-dimension (must sum to 100).
 - Operation log with **Ctrl+Z undo** for the current session
 
 ### 🤖 AI Model Management
-- Configure local ONNX models or cloud API endpoints (OpenAI-compatible, Gemini, custom HTTP)
-- API keys encrypted with **AES-256-GCM** before storage
-- Test connection before saving
+
+The current scoring is **100% algorithm-based** — no AI model is required for the core workflow. The AI layer is an optional enhancement:
+
+| Layer | Technology | When needed |
+|-------|-----------|-------------|
+| Core scoring | OpenCvSharp (Laplacian, histograms, HSV) | Always — no GPU, no model download |
+| Photo descriptions & recommendation text | Any OpenAI-compatible API or local Ollama | Optional, off by default |
+| Semantic search embeddings | CLIP / SigLIP (ONNX or API) | Optional |
+| Face quality scoring | InsightFace (ONNX) | Optional, roadmap |
+
+**Supported AI backends** (configure in the AI Model Management page):
+
+| Backend | How to connect |
+|---------|---------------|
+| **Ollama** (local, free) | Set BaseURL to `http://localhost:11434/v1`, pick any vision model (e.g. `qwen2.5vl:7b`) |
+| **OpenAI / GPT-4o** | Set BaseURL to `https://api.openai.com/v1`, enter your API key |
+| **DeepSeek** | Set BaseURL to `https://api.deepseek.com/v1`, enter your API key |
+| **Google Gemini** | Select Gemini provider, enter your API key |
+| **Custom HTTP endpoint** | Any OpenAI-compatible endpoint |
+
+> API keys are encrypted with **AES-256-GCM** before being written to disk and never stored in plain text. Cloud AI analysis is **disabled by default** — enable it in Settings → Privacy.
 
 ### ⚙️ Settings
 - Dark / Light / System theme
