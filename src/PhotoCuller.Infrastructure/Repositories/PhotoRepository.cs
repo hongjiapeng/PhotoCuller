@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using PhotoCuller.Core.Interfaces.Storage;
 using PhotoCuller.Core.Models;
 using PhotoCuller.Infrastructure.Database;
+using PhotoCuller.Infrastructure.Logging;
 
 namespace PhotoCuller.Infrastructure.Repositories;
 
@@ -83,7 +84,7 @@ public sealed class PhotoRepository : IPhotoRepository
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to flush photo batch of {Count} items.", batch.Count);
+            Log.BatchFlushFailed(_logger, ex, batch.Count);
             throw;
         }
     }

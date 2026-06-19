@@ -8,6 +8,7 @@
 
     <Page.Resources>
         <conv:BoolToVisibilityConverter  x:Key="BoolToVis"/>
+        <conv:StringToVisibilityConverter x:Key="StringToVis"/>
         <conv:ScoreConverter             x:Key="ScoreConv"/>
         <conv:StatusToBrushConverter     x:Key="StatusBrush"/>
         <conv:StatusToLabelConverter     x:Key="StatusLabel"/>
@@ -61,6 +62,7 @@
                 <ComboBoxItem Content="按时间"   Tag="time"/>
                 <ComboBoxItem Content="按名称"   Tag="name"/>
                 <ComboBoxItem Content="按大小"   Tag="size"/>
+                <ComboBoxItem Content="错误照片" Tag="error"/>
             </ComboBox>
         </Grid>
 
@@ -111,6 +113,20 @@
                                 <Image Source="{x:Bind ThumbnailPath,
                                                Converter={StaticResource PathToImage}}"
                                        Stretch="UniformToFill"/>
+
+                                <!-- Error overlay: dim + icon when analysis failed -->
+                                <Border Background="#CC1A1A1A" CornerRadius="6"
+                                        Visibility="{x:Bind ErrorMessage,
+                                            Converter={StaticResource StringToVis}}">
+                                    <StackPanel VerticalAlignment="Center"
+                                                HorizontalAlignment="Center" Spacing="4">
+                                        <FontIcon Glyph="&#xEA39;" FontSize="24"
+                                                  Foreground="#EF4444"/>
+                                        <TextBlock Text="分析失败" FontSize="10"
+                                                   Foreground="#EF4444"
+                                                   HorizontalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
 
                                 <!-- Score badge bottom-right -->
                                 <Border VerticalAlignment="Bottom"

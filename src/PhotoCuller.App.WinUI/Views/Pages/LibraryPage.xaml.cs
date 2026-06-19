@@ -97,6 +97,8 @@ public sealed partial class LibraryPage : Page
                                p.Model.GroupId.HasValue),
             "low"       => source.Where(p =>
                                p.OverallScore.HasValue && p.OverallScore < 50),
+            "error"     => source.Where(p =>
+                               !string.IsNullOrEmpty(p.ErrorMessage)),
             _           => source,
         };
 

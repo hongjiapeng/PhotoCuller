@@ -5,6 +5,7 @@ using MetadataExtractor.Formats.Png;
 using Microsoft.Extensions.Logging;
 using PhotoCuller.Core.Interfaces.Scanning;
 using PhotoCuller.Core.Models;
+using PhotoCuller.Infrastructure.Logging;
 using SixLabors.ImageSharp;
 
 namespace PhotoCuller.Infrastructure.Scanning;
@@ -31,7 +32,7 @@ public sealed class PhotoMetadataReader : IPhotoMetadataReader
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to read metadata for {Path}", photo.FilePath);
+            Log.MetadataFailed(_logger, ex, photo.FilePath);
             photo.ErrorMessage = $"Metadata read failed: {ex.Message}";
         }
     }

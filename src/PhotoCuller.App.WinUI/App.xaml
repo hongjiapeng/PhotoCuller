@@ -10,12 +10,13 @@
             </ResourceDictionary.MergedDictionaries>
 
             <!-- Global converters -->
-            <conv:BoolToVisibilityConverter  x:Key="BoolToVis"/>
-            <conv:StatusToBrushConverter     x:Key="StatusBrush"/>
-            <conv:StatusToLabelConverter     x:Key="StatusLabel"/>
-            <conv:ScoreConverter             x:Key="ScoreConv"/>
-            <conv:FileSizeConverter          x:Key="SizeConv"/>
-            <conv:PathToImageConverter       x:Key="PathToImage"/>
+            <conv:BoolToVisibilityConverter    x:Key="BoolToVis"/>
+            <conv:StringToVisibilityConverter  x:Key="StringToVis"/>
+            <conv:StatusToBrushConverter       x:Key="StatusBrush"/>
+            <conv:StatusToLabelConverter       x:Key="StatusLabel"/>
+            <conv:ScoreConverter               x:Key="ScoreConv"/>
+            <conv:FileSizeConverter            x:Key="SizeConv"/>
+            <conv:PathToImageConverter         x:Key="PathToImage"/>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

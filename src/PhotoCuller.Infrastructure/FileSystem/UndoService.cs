@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using PhotoCuller.Core.Enums;
 using PhotoCuller.Core.Interfaces.FileOps;
 using PhotoCuller.Core.Interfaces.Storage;
+using PhotoCuller.Infrastructure.Logging;
 
 namespace PhotoCuller.Infrastructure.FileSystem;
 
@@ -62,15 +63,13 @@ public sealed class UndoService : IUndoService
 
             await _logRepo.MarkAsUndoneAsync(log.Id, ct);
 
-            _logger.LogInformation(
-                "Undone: {Target} → {Source}", log.TargetPath, log.SourcePath);
+            Log.Undone(_logger, log.TargetPath, log.SourcePath);
 
             return true;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex,
-                "Undo failed for log entry {Id}", log.Id);
+            Log.UndoFailed(_logger, ex, log.Id);
             return false;
         }
     }

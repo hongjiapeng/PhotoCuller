@@ -3,6 +3,7 @@ using Microsoft.Extensions.Options;
 using PhotoCuller.Core.Enums;
 using PhotoCuller.Core.Interfaces.Hashing;
 using PhotoCuller.Core.Models;
+using PhotoCuller.Infrastructure.Logging;
 
 namespace PhotoCuller.Infrastructure.Hashing;
 
@@ -59,8 +60,7 @@ public sealed class DuplicateGroupingService : IDuplicateGroupingService
         IProgress<string>? progress,
         CancellationToken ct)
     {
-        _logger.LogInformation(
-            "Building groups for {Count} photos...", photos.Count);
+        Log.BuildingGroups(_logger, photos.Count);
 
         var groups = new List<PhotoGroup>();
         var grouped = new HashSet<Guid>(); // tracks which photos already have a group
@@ -84,10 +84,7 @@ public sealed class DuplicateGroupingService : IDuplicateGroupingService
         foreach (var group in groups)
             AssignRecommendation(group);
 
-        _logger.LogInformation(
-            "Grouping complete: {Groups} groups " +
-            "({Exact} exact, {Burst} burst, {Similar} similar)",
-            groups.Count,
+        Log.GroupingComplete(_logger, groups.Count,
             groups.Count(g => g.GroupType == GroupType.ExactDuplicate),
             groups.Count(g => g.GroupType == GroupType.Burst),
             groups.Count(g => g.GroupType == GroupType.Similar));

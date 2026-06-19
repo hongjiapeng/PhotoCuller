@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using OpenCvSharp;
+using PhotoCuller.Infrastructure.Logging;
 using PhotoCuller.Core.Interfaces.Scanning;
 
 namespace PhotoCuller.Infrastructure.Scanning;
@@ -40,7 +41,7 @@ public sealed class ImageDecoder : IImageDecoder
         }
         catch (Exception ex)
         {
-            _logger.LogDebug(ex, "Gray decode failed for {Path}", filePath);
+            Log.GrayDecodeFailed(_logger, ex, filePath);
             return null;
         }
     }
@@ -63,7 +64,7 @@ public sealed class ImageDecoder : IImageDecoder
         }
         catch (Exception ex)
         {
-            _logger.LogDebug(ex, "RGB decode failed for {Path}", filePath);
+            Log.RgbDecodeFailed(_logger, ex, filePath);
             return null;
         }
     }

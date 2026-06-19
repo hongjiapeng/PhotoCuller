@@ -6,6 +6,7 @@ using PhotoCuller.Core.Enums;
 using PhotoCuller.Core.Interfaces.Scanning;
 using PhotoCuller.Core.Interfaces.Storage;
 using PhotoCuller.Core.Models;
+using PhotoCuller.Infrastructure.Logging;
 
 namespace PhotoCuller.Infrastructure.Scanning;
 
@@ -79,7 +80,7 @@ public sealed class PhotoScanner : IPhotoScanner
     {
         try
         {
-            _logger.LogInformation("Scan started: {Directory}", directory);
+            Log.ScanStarted(_logger, directory);
 
             // Phase 1: Enumerate files
             _progressService.Report(new ScanProgress(ScanPhase.Enumerating, 0, 0,
@@ -87,7 +88,7 @@ public sealed class PhotoScanner : IPhotoScanner
 
             var allFiles = EnumerateImageFiles(directory, ct).ToList();
             int total = allFiles.Count;
-            _logger.LogInformation("Found {Count} image files in {Directory}", total, directory);
+            Log.FilesFound(_logger, total, directory);
 
             // Phase 2: Incremental filter
             _progressService.Report(new ScanProgress(ScanPhase.Enumerating, 0, total,
@@ -103,9 +104,7 @@ public sealed class PhotoScanner : IPhotoScanner
                 .GetPathsNeedingRescanAsync(candidates, ct);
 
             int newTotal = pathsToScan.Count;
-            _logger.LogInformation(
-                "{Count} files need scanning (skipping {Skipped} unchanged)",
-                newTotal, total - newTotal);
+            Log.FilesToScan(_logger, newTotal, total - newTotal);
 
             // Phase 3: Read metadata
             _progressService.Report(new ScanProgress(ScanPhase.ReadingMetadata, 0, newTotal,
@@ -129,21 +128,19 @@ public sealed class PhotoScanner : IPhotoScanner
             }
 
             _progressService.Report(ScanProgress.Completed(processed, startedAt));
-            _logger.LogInformation(
-                "Scan completed: {Processed} files processed in {Elapsed:F1}s",
-                processed, (DateTime.UtcNow - startedAt).TotalSeconds);
+            Log.ScanCompleted(_logger, processed, (DateTime.UtcNow - startedAt).TotalSeconds);
         }
         catch (OperationCanceledException)
         {
             _progressService.Report(ScanProgress.Cancelled(0, 0));
-            _logger.LogInformation("Scan cancelled for {Directory}", directory);
+            Log.ScanCancelled(_logger, directory);
             throw;
         }
         catch (Exception ex)
         {
             _progressService.Report(new ScanProgress(ScanPhase.Failed, 0, 0,
                 Message: ex.Message));
-            _logger.LogError(ex, "Scan failed for {Directory}", directory);
+            Log.ScanFailed(_logger, ex, directory);
             throw;
         }
         finally

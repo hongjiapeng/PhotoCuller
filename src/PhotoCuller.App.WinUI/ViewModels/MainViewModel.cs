@@ -169,6 +169,11 @@ public sealed partial class MainViewModel : ObservableObject
             LastScanTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
             ScanDuration = $"{(DateTime.Now - started).TotalSeconds:F0}s";
 
+            // Persist last-used directory so it can be restored on next launch
+            var savedSettings = await _settings.LoadAsync(_scanCts!.Token);
+            savedSettings.LastSelectedDirectory = SelectedDirectory;
+            await _settings.SaveAsync(savedSettings, _scanCts.Token);
+
             ScanProgress = Core.Models.ScanProgress.Completed(allPhotos.Count, started.ToUniversalTime());
             _notifications.ShowSuccess($"扫描完成：{allPhotos.Count} 张照片，{photoGroups.Count} 个相似组");
         }

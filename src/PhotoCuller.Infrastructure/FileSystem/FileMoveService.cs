@@ -3,6 +3,7 @@ using PhotoCuller.Core.Enums;
 using PhotoCuller.Core.Interfaces.FileOps;
 using PhotoCuller.Core.Interfaces.Storage;
 using PhotoCuller.Core.Models;
+using PhotoCuller.Infrastructure.Logging;
 
 namespace PhotoCuller.Infrastructure.FileSystem;
 
@@ -54,14 +55,13 @@ public sealed class FileMoveService : IFileMoveService
             photo.IsMovedToTrash = true;
             photo.RecommendationStatus = RecommendationStatus.ToDelete;
 
-            _logger.LogInformation(
-                "Moved {Src} → {Dst}", photo.FilePath, dest);
+            Log.FileMoved(_logger, photo.FilePath, dest);
         }
         catch (Exception ex)
         {
             log.Status       = OperationStatus.Failed;
             log.ErrorMessage = ex.Message;
-            _logger.LogError(ex, "Failed to move {Path}", photo.FilePath);
+            Log.MoveFileFailed(_logger, ex, photo.FilePath);
         }
 
         await _logRepo.AddAsync(log, ct);
