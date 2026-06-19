@@ -3,9 +3,12 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using PhotoCuller.Core.Interfaces.Hashing;
 using PhotoCuller.Core.Interfaces.Scanning;
+using PhotoCuller.Core.Interfaces.Scoring;
 using PhotoCuller.Core.Interfaces.Storage;
 using PhotoCuller.Infrastructure.Database;
 using PhotoCuller.Infrastructure.Hashing;
+using PhotoCuller.Infrastructure.ImageProcessing;
+using PhotoCuller.Infrastructure.ImageProcessing.Scorers;
 using PhotoCuller.Infrastructure.Repositories;
 using PhotoCuller.Infrastructure.Scanning;
 using PhotoCuller.Infrastructure.ThumbnailCache;
@@ -58,6 +61,18 @@ public static class InfrastructureServiceExtensions
         services.AddTransient<IHashService, HashService>();
         services.AddTransient<IPerceptualHashService, PerceptualHashService>();
         services.AddTransient<ISimilarityService, SimilarityService>();
+
+        // Image scoring — individual analyzers
+        services.AddTransient<ISharpnessAnalyzer, SharpnessAnalyzer>();
+        services.AddTransient<IExposureAnalyzer, ExposureAnalyzer>();
+        services.AddTransient<IContrastAnalyzer, ContrastAnalyzer>();
+        services.AddTransient<INoiseAnalyzer, NoiseAnalyzer>();
+        services.AddTransient<ICompositionAnalyzer, CompositionAnalyzer>();
+        services.AddTransient<IColorAnalyzer, ColorAnalyzer>();
+        services.AddTransient<ResolutionAnalyzer>();
+
+        // Scoring coordinator
+        services.AddTransient<IPhotoScoringService, PhotoScoringService>();
 
         return services;
     }
