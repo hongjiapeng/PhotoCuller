@@ -45,148 +45,173 @@
                             TextChanged="SearchBox_TextChanged"/>
         </Grid>
 
-        <!-- ── GROUPS LIST ───────────────────────── -->
-        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-            <ItemsControl x:Name="GroupsList" Padding="14,0,14,14">
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate x:DataType="vm:PhotoGroupViewModel">
-                        <Border Margin="0,0,0,10" CornerRadius="8"
-                                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                                BorderThickness="1">
-                            <StackPanel>
+        <!-- ── GROUPS LIST (virtualized ListView) ────────────────────────────
+             ListView + VirtualizingStackPanel renders only visible rows.
+             Each group row height is bounded (~180px) so the virtualizer can
+             accurately predict and recycle off-screen containers.
+        ──────────────────────────────────────────────────────────────────── -->
+        <ListView Grid.Row="1"
+                  x:Name="GroupsList"
+                  Padding="10,0,10,10"
+                  SelectionMode="None"
+                  IsItemClickEnabled="False">
 
-                                <!-- Group header row -->
-                                <Grid Padding="12,9,8,9">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
+            <!-- Remove the default highlight/selection chrome -->
+            <ListView.ItemContainerStyle>
+                <Style TargetType="ListViewItem">
+                    <Setter Property="Padding"                   Value="0"/>
+                    <Setter Property="Margin"                    Value="0,0,0,8"/>
+                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                    <Setter Property="Background"                Value="Transparent"/>
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="ListViewItem">
+                                <ContentPresenter/>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+            </ListView.ItemContainerStyle>
 
-                                    <!-- Type badge -->
-                                    <Border Grid.Column="0"
-                                            CornerRadius="4" Padding="6,2"
-                                            Background="{ThemeResource AccentAAFillColorDefaultBrush}"
-                                            Margin="0,0,8,0" VerticalAlignment="Center">
-                                        <TextBlock Text="{x:Bind GroupTypeLabel}"
-                                                   FontSize="11" Foreground="White"/>
-                                    </Border>
+            <ListView.ItemTemplate>
+                <DataTemplate x:DataType="vm:PhotoGroupViewModel">
 
-                                    <!-- Name + recommended -->
-                                    <StackPanel Grid.Column="1"
-                                                Orientation="Horizontal" Spacing="8"
-                                                VerticalAlignment="Center">
-                                        <TextBlock Text="{x:Bind Name}"
-                                                   FontSize="13" FontWeight="SemiBold"/>
-                                        <TextBlock FontSize="11" Opacity="0.5"
-                                                   VerticalAlignment="Center">
-                                            <Run Text="推荐保留: "/>
-                                            <Run Text="{x:Bind RecommendedFileName}"
-                                                 FontWeight="SemiBold" Foreground="#22C55E"/>
-                                        </TextBlock>
-                                    </StackPanel>
+                    <!-- Group card -->
+                    <Border CornerRadius="8"
+                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            BorderThickness="1">
+                        <StackPanel>
 
-                                    <!-- Move others button -->
-                                    <Button Grid.Column="2"
-                                            Content="移除其余"
-                                            FontSize="11" Padding="8,3"
-                                            Margin="0,0,6,0"
-                                            Click="MoveOthers_Click"
-                                            Tag="{x:Bind Id}"/>
+                            <!-- Group header -->
+                            <Grid Padding="12,9,8,9">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
 
-                                    <!-- Expand toggle -->
-                                    <ToggleButton Grid.Column="3"
-                                                  IsChecked="{x:Bind IsExpanded, Mode=TwoWay}"
-                                                  Padding="6,3" FontSize="11">
-                                        <FontIcon Glyph="&#xE70D;" FontSize="11"/>
-                                    </ToggleButton>
-                                </Grid>
+                                <!-- Type badge -->
+                                <Border Grid.Column="0"
+                                        CornerRadius="4" Padding="6,2"
+                                        Background="{ThemeResource AccentAAFillColorDefaultBrush}"
+                                        Margin="0,0,8,0" VerticalAlignment="Center">
+                                    <TextBlock Text="{x:Bind GroupTypeLabel}"
+                                               FontSize="11" Foreground="White"/>
+                                </Border>
 
-                                <!-- Photos horizontal strip -->
-                                <ScrollViewer
-                                    HorizontalScrollBarVisibility="Auto"
-                                    VerticalScrollBarVisibility="Disabled"
-                                    Padding="8,0,8,10"
-                                    Visibility="{x:Bind IsExpanded,
-                                        Converter={StaticResource BoolToVis}, Mode=OneWay}">
-                                    <ItemsControl ItemsSource="{x:Bind Photos}">
-                                        <ItemsControl.ItemsPanel>
-                                            <ItemsPanelTemplate>
-                                                <StackPanel Orientation="Horizontal" Spacing="6"/>
-                                            </ItemsPanelTemplate>
-                                        </ItemsControl.ItemsPanel>
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate x:DataType="vm:PhotoItemViewModel">
-                                                <!-- Single photo card -->
-                                                <Button Padding="0" CornerRadius="6"
-                                                        Width="130"
-                                                        Click="PhotoCard_Click"
-                                                        Tag="{x:Bind Id}">
-                                                    <Grid>
-                                                        <!-- Thumbnail -->
-                                                        <Border Height="120" CornerRadius="6"
-                                                                Background="#1E1E1E">
-                                                            <Image
-                                                                Source="{x:Bind ThumbnailPath,
-                                                                         Converter={StaticResource PathToImage}}"
-                                                                Stretch="UniformToFill"/>
-                                                        </Border>
+                                <!-- Name + recommended -->
+                                <StackPanel Grid.Column="1"
+                                            Orientation="Horizontal" Spacing="8"
+                                            VerticalAlignment="Center">
+                                    <TextBlock Text="{x:Bind Name}"
+                                               FontSize="13" FontWeight="SemiBold"/>
+                                    <TextBlock FontSize="11" Opacity="0.5"
+                                               VerticalAlignment="Center">
+                                        <Run Text="推荐保留: "/>
+                                        <Run Text="{x:Bind RecommendedFileName}"
+                                             FontWeight="SemiBold" Foreground="#22C55E"/>
+                                    </TextBlock>
+                                </StackPanel>
 
-                                                        <!-- Keep green border -->
-                                                        <Border CornerRadius="6"
-                                                                BorderThickness="2"
-                                                                BorderBrush="#22C55E"
-                                                                Visibility="{x:Bind IsKeep,
-                                                                    Converter={StaticResource BoolToVis}}"/>
+                                <!-- Move others -->
+                                <Button Grid.Column="2"
+                                        Content="移除其余" FontSize="11"
+                                        Padding="8,3" Margin="0,0,6,0"
+                                        Click="MoveOthers_Click"
+                                        Tag="{x:Bind Id}"/>
 
-                                                        <!-- Bottom overlay -->
-                                                        <Border VerticalAlignment="Bottom"
-                                                                CornerRadius="0,0,6,6"
-                                                                Background="#AA000000"
-                                                                Padding="6,4">
-                                                            <Grid>
-                                                                <Grid.ColumnDefinitions>
-                                                                    <ColumnDefinition Width="Auto"/>
-                                                                    <ColumnDefinition Width="*"/>
-                                                                </Grid.ColumnDefinitions>
+                                <!-- Expand/collapse -->
+                                <ToggleButton Grid.Column="3"
+                                              IsChecked="{x:Bind IsExpanded, Mode=TwoWay}"
+                                              Padding="6,3" FontSize="11">
+                                    <FontIcon Glyph="&#xE70D;" FontSize="11"/>
+                                </ToggleButton>
+                            </Grid>
 
-                                                                <!-- Status label -->
-                                                                <Border Grid.Column="0"
-                                                                        CornerRadius="3" Padding="4,1"
-                                                                        Margin="0,0,4,0"
-                                                                        Background="{x:Bind Status,
-                                                                            Converter={StaticResource StatusBrush}}">
-                                                                    <TextBlock
-                                                                        Text="{x:Bind Status,
-                                                                              Converter={StaticResource StatusLabel}}"
-                                                                        FontSize="10" Foreground="White"
-                                                                        FontWeight="SemiBold"/>
-                                                                </Border>
+                            <!-- Photos horizontal strip (collapsed when IsExpanded=false) -->
+                            <ScrollViewer
+                                HorizontalScrollBarVisibility="Auto"
+                                VerticalScrollBarVisibility="Disabled"
+                                Padding="8,0,8,10"
+                                MaxHeight="160"
+                                Visibility="{x:Bind IsExpanded,
+                                    Converter={StaticResource BoolToVis}, Mode=OneWay}">
+                                <!--
+                                    Use ItemsRepeater with a horizontal StackLayout for
+                                    the photo strip. ItemsRepeater is lighter than ItemsControl
+                                    and doesn't add extra selection chrome.
+                                -->
+                                <ItemsRepeater ItemsSource="{x:Bind Photos}">
+                                    <ItemsRepeater.Layout>
+                                        <StackLayout Orientation="Horizontal" Spacing="6"/>
+                                    </ItemsRepeater.Layout>
+                                    <ItemsRepeater.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:PhotoItemViewModel">
+                                            <Button Padding="0" CornerRadius="6"
+                                                    Width="130"
+                                                    Click="PhotoCard_Click"
+                                                    Tag="{x:Bind Id}">
+                                                <Grid>
+                                                    <!-- Thumbnail -->
+                                                    <Border Height="120" CornerRadius="6"
+                                                            Background="#1E1E1E">
+                                                        <Image
+                                                            Source="{x:Bind ThumbnailPath,
+                                                                     Converter={StaticResource PathToImage}}"
+                                                            Stretch="UniformToFill"/>
+                                                    </Border>
 
-                                                                <!-- Score -->
-                                                                <TextBlock Grid.Column="1"
-                                                                           Text="{x:Bind OverallScore,
-                                                                                  Converter={StaticResource ScoreConv}}"
-                                                                           FontSize="14" FontWeight="Bold"
-                                                                           Foreground="White"
-                                                                           HorizontalAlignment="Right"/>
-                                                            </Grid>
-                                                        </Border>
-                                                    </Grid>
-                                                </Button>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                </ScrollViewer>
+                                                    <!-- Keep green border -->
+                                                    <Border CornerRadius="6"
+                                                            BorderThickness="2"
+                                                            BorderBrush="#22C55E"
+                                                            Visibility="{x:Bind IsKeep,
+                                                                Converter={StaticResource BoolToVis}}"/>
 
-                            </StackPanel>
-                        </Border>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
-        </ScrollViewer>
+                                                    <!-- Bottom score/status overlay -->
+                                                    <Border VerticalAlignment="Bottom"
+                                                            CornerRadius="0,0,6,6"
+                                                            Background="#AA000000"
+                                                            Padding="6,4">
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                                <ColumnDefinition Width="*"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <Border Grid.Column="0"
+                                                                    CornerRadius="3" Padding="4,1"
+                                                                    Margin="0,0,4,0"
+                                                                    Background="{x:Bind Status,
+                                                                        Converter={StaticResource StatusBrush}}">
+                                                                <TextBlock
+                                                                    Text="{x:Bind Status,
+                                                                          Converter={StaticResource StatusLabel}}"
+                                                                    FontSize="10" Foreground="White"
+                                                                    FontWeight="SemiBold"/>
+                                                            </Border>
+                                                            <TextBlock Grid.Column="1"
+                                                                       Text="{x:Bind OverallScore,
+                                                                              Converter={StaticResource ScoreConv}}"
+                                                                       FontSize="14" FontWeight="Bold"
+                                                                       Foreground="White"
+                                                                       HorizontalAlignment="Right"/>
+                                                        </Grid>
+                                                    </Border>
+                                                </Grid>
+                                            </Button>
+                                        </DataTemplate>
+                                    </ItemsRepeater.ItemTemplate>
+                                </ItemsRepeater>
+                            </ScrollViewer>
+
+                        </StackPanel>
+                    </Border>
+
+                </DataTemplate>
+            </ListView.ItemTemplate>
+        </ListView>
 
         <!-- ── STATUS BAR ────────────────────────── -->
         <Border Grid.Row="2" Padding="14,8"

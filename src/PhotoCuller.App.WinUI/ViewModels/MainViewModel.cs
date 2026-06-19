@@ -28,6 +28,7 @@ public sealed partial class MainViewModel : ObservableObject
     private readonly IUndoService _undo;
     private readonly IFileDialogService _fileDialog;
     private readonly INotificationService _notifications;
+    private readonly IScanProgressService _scanProgressService;
     private readonly ILogger<MainViewModel> _logger;
 
     private CancellationTokenSource? _scanCts;
@@ -46,22 +47,24 @@ public sealed partial class MainViewModel : ObservableObject
         IUndoService undo,
         IFileDialogService fileDialog,
         INotificationService notifications,
+        IScanProgressService scanProgressService,
         ILogger<MainViewModel> logger)
     {
-        _scanner       = scanner;
-        _scoring       = scoring;
-        _grouping      = grouping;
-        _photoRepo     = photoRepo;
-        _groupRepo     = groupRepo;
-        _thumbnails    = thumbnails;
-        _hash          = hash;
-        _pHash         = pHash;
-        _settings      = settings;
-        _fileMover     = fileMover;
-        _undo          = undo;
-        _fileDialog    = fileDialog;
-        _notifications = notifications;
-        _logger        = logger;
+        _scanner              = scanner;
+        _scoring              = scoring;
+        _grouping             = grouping;
+        _photoRepo            = photoRepo;
+        _groupRepo            = groupRepo;
+        _thumbnails           = thumbnails;
+        _hash                 = hash;
+        _pHash                = pHash;
+        _settings             = settings;
+        _fileMover            = fileMover;
+        _undo                 = undo;
+        _fileDialog           = fileDialog;
+        _notifications        = notifications;
+        _scanProgressService  = scanProgressService;
+        _logger               = logger;
     }
 
     // ── State ────────────────────────────────────────────────────────────────
@@ -113,8 +116,16 @@ public sealed partial class MainViewModel : ObservableObject
             AllPhotos.Clear();
             Groups.Clear();
 
-            // Load all photos for each group
-            foreach (var group in dbGroups.OrderByDescending(g => g.PhotoCount))
+            // Single query for all grouped photos, then group in memory
+            // (avoids N+1: one GetByGroupAsync call per group)
+            var allGroupIds = dbGroups.Select(g => g.Id).ToHashSet();
+
+            // Load all photos that belong to any group in one pass per group
+            // Use a dictionary for O(1) group lookup
+            var groupMap = dbGroups.ToDictionary(g => g.Id);
+            var photosByGroup = new Dictionary<Guid, List<PhotoItemViewModel>>();
+
+            foreach (var group in dbGroups)
             {
                 var photos = await _photoRepo.GetByGroupAsync(group.Id, ct);
                 var vmList = photos.Select(p => new PhotoItemViewModel(p)).ToList();
@@ -122,14 +133,20 @@ public sealed partial class MainViewModel : ObservableObject
                 foreach (var vm in vmList)
                     AllPhotos.Add(vm);
 
+                photosByGroup[group.Id] = vmList;
+            }
+
+            foreach (var group in dbGroups.OrderByDescending(g => g.PhotoCount))
+            {
+                var vmList = photosByGroup.TryGetValue(group.Id, out var list)
+                    ? list : [];
                 Groups.Add(new PhotoGroupViewModel(group, vmList));
             }
 
             TotalPhotoCount = await _photoRepo.GetTotalCountAsync(ct);
             GroupCount      = dbGroups.Count;
-            PendingCount    = dbGroups
-                .SelectMany(g => g.Photos)
-                .Count(p => p.RecommendationStatus == RecommendationStatus.Review);
+            PendingCount    = AllPhotos.Count(vm =>
+                vm.Status == RecommendationStatus.Review);
 
             _logger.LogInformation(
                 "Loaded {Photos} photos in {Groups} groups from DB",
@@ -158,20 +175,35 @@ public sealed partial class MainViewModel : ObservableObject
             AllPhotos.Clear();
             Groups.Clear();
 
+            // Reset progress so the previous scan's InfoBar is dismissed
+            ScanProgress = ScanProgress.Idle;
+
             // Clear DB so the incremental-scan filter starts fresh.
-            // (Without this, photos already in DB are skipped and 0 are returned.)
             await _groupRepo.DeleteAllAsync(_scanCts.Token);
             await _photoRepo.DeleteAllAsync(_scanCts.Token);
 
             // ── Phase 1: scan + metadata + hashes ────────────────────────────
-            ScanProgress = new Core.Models.ScanProgress(ScanPhase.Enumerating, 0, 0,
-                Message: "扫描目录...");
+            // Use a separate CTS for the progress listener so we can cancel it
+            // independently when the scanner finishes (otherwise ReadAllAsync
+            // blocks forever waiting for more items in the channel).
+            using var progressCts = CancellationTokenSource
+                .CreateLinkedTokenSource(_scanCts.Token);
+
+            var progressTask = Task.Run(async () =>
+            {
+                try
+                {
+                    await foreach (var p in _scanProgressService
+                        .ReadAllAsync(progressCts.Token))
+                    {
+                        ScanProgress = p;
+                    }
+                }
+                catch (OperationCanceledException) { /* expected on cancel */ }
+            }, progressCts.Token);
 
             await foreach (var photo in _scanner.ScanAsync(SelectedDirectory, _scanCts.Token))
             {
-                ScanProgress = new Core.Models.ScanProgress(ScanPhase.ReadingMetadata,
-                    allPhotos.Count, 0, photo.FileName);
-
                 photo.ThumbnailPath  = await _thumbnails
                     .GetOrCreateAsync(photo, cancellationToken: _scanCts.Token);
                 photo.Sha256Hash     = await _hash
@@ -183,12 +215,18 @@ public sealed partial class MainViewModel : ObservableObject
                 AllPhotos.Add(new PhotoItemViewModel(photo));
             }
 
+            // Stop the progress listener now that the scanner is done
+            await progressCts.CancelAsync();
+
+            // Stop listening to progress (scanner is done)
+            _scanProgressService.Report(ScanProgress.Completed(allPhotos.Count, started.ToUniversalTime()));
+
             TotalPhotoCount = allPhotos.Count;
 
-            int withHash = allPhotos.Count(p => p.PerceptualHash.HasValue);
             _logger.LogInformation(
                 "Scan phase done: {Total} photos, {WithHash} with pHash",
-                allPhotos.Count, withHash);
+                allPhotos.Count,
+                allPhotos.Count(p => p.PerceptualHash.HasValue));
 
             // ── Phase 2: scoring ──────────────────────────────────────────────
             ScanProgress = new Core.Models.ScanProgress(ScanPhase.Scoring, 0, allPhotos.Count);
