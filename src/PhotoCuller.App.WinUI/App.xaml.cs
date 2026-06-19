@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.UI.Xaml;
 using PhotoCuller.App.WinUI.Views;
+using PhotoCuller.Infrastructure.Configuration;
 using Serilog;
 
 namespace PhotoCuller.App.WinUI;
@@ -43,10 +44,19 @@ public partial class App : Application
                     retainedFileCountLimit: 14))
             .ConfigureServices(services =>
             {
+                // Resolve database path: %LocalAppData%\PhotoCuller\photoculler.db
+                var dbPath = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "PhotoCuller", "photoculler.db");
+                Directory.CreateDirectory(Path.GetDirectoryName(dbPath)!);
+
+                // Infrastructure: DbContext + Repositories
+                services.AddInfrastructure(dbPath);
+
                 // UI
                 services.AddSingleton<MainWindow>();
 
-                // TODO: Register Core / Infrastructure services in subsequent phases
+                // TODO: Register Core services in subsequent phases
             })
             .Build();
 }
