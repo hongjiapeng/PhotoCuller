@@ -1,7 +1,10 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.UI.Xaml;
+using PhotoCuller.App.WinUI.Services;
+using PhotoCuller.App.WinUI.ViewModels;
 using PhotoCuller.App.WinUI.Views;
+using PhotoCuller.Core.Interfaces.Platform;
 using PhotoCuller.Core.Models;
 using PhotoCuller.Infrastructure.Configuration;
 using Serilog;
@@ -13,18 +16,23 @@ public partial class App : Application
     private IHost? _host;
     private MainWindow? _mainWindow;
 
-    public App()
-    {
-        InitializeComponent();
-    }
+    public App() => InitializeComponent();
 
     public static IServiceProvider Services =>
         ((App)Current)._host!.Services;
 
-    protected override void OnLaunched(LaunchActivatedEventArgs args)
+    protected override async void OnLaunched(LaunchActivatedEventArgs args)
     {
         _host = CreateHost();
-        _host.Start();
+        await _host.StartAsync();
+
+        // Initialize database on startup
+        using (var scope = _host.Services.CreateScope())
+        {
+            var initializer = scope.ServiceProvider
+                .GetRequiredService<PhotoCuller.Infrastructure.Database.DatabaseInitializer>();
+            await initializer.InitializeAsync();
+        }
 
         _mainWindow = _host.Services.GetRequiredService<MainWindow>();
         _mainWindow.Activate();
@@ -45,22 +53,34 @@ public partial class App : Application
                     retainedFileCountLimit: 14))
             .ConfigureServices(services =>
             {
-                // Resolve database path: %LocalAppData%\PhotoCuller\photoculler.db
                 var dbPath = Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                     "PhotoCuller", "photoculler.db");
                 Directory.CreateDirectory(Path.GetDirectoryName(dbPath)!);
 
-                // Infrastructure: DbContext + Repositories + Scanning
+                // Infrastructure
                 services.AddInfrastructure(dbPath);
 
-                // AppSettings (loaded from settings.json, used by PhotoScanner etc.)
+                // AppSettings
                 services.AddOptions<AppSettings>();
 
-                // UI
-                services.AddSingleton<MainWindow>();
+                // Platform services (need MainWindow, registered after)
+                services.AddSingleton<MainWindow>(sp =>
+                {
+                    var vm = sp.GetRequiredService<MainViewModel>();
+                    return new MainWindow(vm);
+                });
+                services.AddSingleton<IFileDialogService>(sp =>
+                    new WinUIFileDialogService(sp.GetRequiredService<MainWindow>()));
+                services.AddSingleton<INotificationService>(sp =>
+                    new WinUINotificationService(sp.GetRequiredService<MainWindow>()));
+                services.AddSingleton<IThemeService>(sp =>
+                    new WinUIThemeService(sp.GetRequiredService<MainWindow>()));
+                services.AddSingleton<IOpenFileLocationService,
+                    WinUIOpenFileLocationService>();
 
-                // TODO: Register Core services in subsequent phases
+                // ViewModels
+                services.AddSingleton<MainViewModel>();
             })
             .Build();
 }

@@ -1,0 +1,113 @@
+<UserControl
+    x:Class="PhotoCuller.App.WinUI.Views.PhotoDetailPanel"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:PhotoCuller.App.WinUI.Views"
+    xmlns:conv="using:PhotoCuller.App.WinUI.Converters">
+
+    <UserControl.Resources>
+        <conv:BoolToVisibilityConverter x:Key="BoolToVis"/>
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                  Background="{ThemeResource LayerFillColorDefaultBrush}">
+        <StackPanel Spacing="0">
+
+            <!-- Large preview image -->
+            <Border Height="220" Background="#1A1A1A">
+                <Image x:Name="PreviewImage" Stretch="Uniform" HorizontalAlignment="Center"/>
+            </Border>
+
+            <!-- Filename -->
+            <TextBlock x:Name="FileNameLabel"
+                       Margin="12,10,12,0"
+                       FontSize="13" FontWeight="SemiBold"
+                       TextTrimming="CharacterEllipsis"/>
+
+            <!-- Action buttons -->
+            <StackPanel Orientation="Horizontal" Spacing="6" Margin="12,8,12,0">
+                <Button x:Name="BtnOpenLocation" ToolTipService.ToolTip="在资源管理器中打开"
+                        Padding="8,4" Click="BtnOpenLocation_Click">
+                    <FontIcon Glyph="&#xED25;" FontSize="14"/>
+                </Button>
+                <Button x:Name="BtnFavorite" ToolTipService.ToolTip="标记保留"
+                        Padding="8,4" Click="BtnFavorite_Click">
+                    <FontIcon Glyph="&#xE734;" FontSize="14"/>
+                </Button>
+                <Button x:Name="BtnMarkDelete" ToolTipService.ToolTip="标记待删除"
+                        Padding="8,4" Click="BtnMarkDelete_Click">
+                    <FontIcon Glyph="&#xE74D;" FontSize="14"/>
+                </Button>
+            </StackPanel>
+
+            <!-- Score section -->
+            <TextBlock Text="评分详情" Margin="12,14,12,4"
+                       FontSize="12" Opacity="0.5" FontWeight="SemiBold"/>
+
+            <!-- Overall score -->
+            <Grid Margin="12,0,12,10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="总体评分" FontSize="13" VerticalAlignment="Center"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
+                    <TextBlock x:Name="OverallScoreLabel"
+                               FontSize="22" FontWeight="Bold"
+                               Foreground="{ThemeResource AccentAAFillColorDefaultBrush}"/>
+                    <TextBlock Text=" / 100" FontSize="12" Opacity="0.5"
+                               VerticalAlignment="Bottom" Margin="0,0,0,3"/>
+                </StackPanel>
+            </Grid>
+
+            <!-- Score rows (inline to avoid local: prefix issue) -->
+            <StackPanel Margin="12,0,12,0" Spacing="6">
+                <local:ScoreRow x:Name="RowSharpness"   Label="清晰度"/>
+                <local:ScoreRow x:Name="RowExposure"    Label="曝光"/>
+                <local:ScoreRow x:Name="RowContrast"    Label="对比度"/>
+                <local:ScoreRow x:Name="RowNoise"       Label="噪点"/>
+                <local:ScoreRow x:Name="RowResolution"  Label="分辨率"/>
+                <local:ScoreRow x:Name="RowComposition" Label="构图"/>
+                <local:ScoreRow x:Name="RowColor"       Label="色彩"/>
+            </StackPanel>
+
+            <!-- File info -->
+            <TextBlock Text="文件信息" Margin="12,14,12,6"
+                       FontSize="12" Opacity="0.5" FontWeight="SemiBold"/>
+
+            <Grid Margin="12,0,12,16" RowSpacing="4">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="68"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition/><RowDefinition/><RowDefinition/>
+                    <RowDefinition/><RowDefinition/><RowDefinition/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="文件名"   FontSize="11" Opacity="0.5"/>
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="大小"     FontSize="11" Opacity="0.5"/>
+                <TextBlock Grid.Row="2" Grid.Column="0" Text="分辨率"   FontSize="11" Opacity="0.5"/>
+                <TextBlock Grid.Row="3" Grid.Column="0" Text="拍摄时间" FontSize="11" Opacity="0.5"/>
+                <TextBlock Grid.Row="4" Grid.Column="0" Text="修改时间" FontSize="11" Opacity="0.5"/>
+                <TextBlock Grid.Row="5" Grid.Column="0" Text="路径"     FontSize="11" Opacity="0.5"/>
+
+                <TextBlock x:Name="InfoFileName"   Grid.Row="0" Grid.Column="1" FontSize="11" TextWrapping="Wrap"/>
+                <TextBlock x:Name="InfoSize"       Grid.Row="1" Grid.Column="1" FontSize="11"/>
+                <TextBlock x:Name="InfoResolution" Grid.Row="2" Grid.Column="1" FontSize="11"/>
+                <TextBlock x:Name="InfoTaken"      Grid.Row="3" Grid.Column="1" FontSize="11"/>
+                <TextBlock x:Name="InfoModified"   Grid.Row="4" Grid.Column="1" FontSize="11"/>
+                <TextBlock x:Name="InfoPath"       Grid.Row="5" Grid.Column="1"
+                           FontSize="11" TextWrapping="Wrap" Opacity="0.7"/>
+            </Grid>
+
+            <!-- Recommendation reason -->
+            <TextBlock x:Name="ReasonHeader" Text="推荐原因"
+                       Margin="12,0,12,6" FontSize="12" Opacity="0.5"
+                       FontWeight="SemiBold" Visibility="Collapsed"/>
+            <TextBlock x:Name="ReasonText"
+                       Margin="12,0,12,16" FontSize="11"
+                       TextWrapping="Wrap" Opacity="0.8" Visibility="Collapsed"/>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

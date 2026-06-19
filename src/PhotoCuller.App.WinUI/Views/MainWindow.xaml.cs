@@ -1,46 +1,55 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Navigation;
+using PhotoCuller.App.WinUI.ViewModels;
 using PhotoCuller.App.WinUI.Views.Pages;
 
 namespace PhotoCuller.App.WinUI.Views;
 
 public sealed partial class MainWindow : Window
 {
-    public MainWindow()
+    public MainViewModel ViewModel { get; }
+
+    public MainWindow(MainViewModel viewModel)
     {
+        ViewModel = viewModel;
         InitializeComponent();
         ExtendsContentIntoTitleBar = true;
 
-        // Navigate to the photo library by default
-        NavView.SelectedItem = NavView.MenuItems[0];
-        ContentFrame.Navigate(typeof(LibraryPage));
+        // Default to similar-groups page
+        ContentFrame.Navigate(typeof(SimilarGroupsPage));
+
+        // Keep directory label in sync
+        ViewModel.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(MainViewModel.SelectedDirectory))
+                DirLabel.Text = string.IsNullOrEmpty(ViewModel.SelectedDirectory)
+                    ? "未选择目录"
+                    : System.IO.Path.GetFileName(ViewModel.SelectedDirectory)
+                      is { Length: > 0 } name ? name : ViewModel.SelectedDirectory;
+        };
     }
 
-    private void NavView_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
+    private void NavButton_Click(object sender, RoutedEventArgs e)
     {
-        if (args.IsSettingsSelected)
-        {
-            ContentFrame.Navigate(typeof(SettingsPage));
-            return;
-        }
+        var tag = (sender as FrameworkElement)?.Tag?.ToString();
+        Navigate(tag);
+    }
 
-        if (args.SelectedItem is NavigationViewItem item)
+    private void Navigate(string? tag)
+    {
+        Type? pageType = tag switch
         {
-            var tag = item.Tag?.ToString();
-            Type? pageType = tag switch
-            {
-                "library"     => typeof(LibraryPage),
-                "similar"     => typeof(SimilarGroupsPage),
-                "recommended" => typeof(RecommendedPage),
-                "pending"     => typeof(PendingPage),
-                "trash"       => typeof(TrashPage),
-                "aimodels"    => typeof(AiModelsPage),
-                _             => null
-            };
+            "all"      => typeof(LibraryPage),
+            "similar"  => typeof(SimilarGroupsPage),
+            "keep"     => typeof(RecommendedPage),
+            "review"   => typeof(PendingPage),
+            "trash"    => typeof(TrashPage),
+            "aimodels" => typeof(AiModelsPage),
+            "settings" => typeof(SettingsPage),
+            _          => typeof(SimilarGroupsPage),
+        };
 
-            if (pageType is not null)
-                ContentFrame.Navigate(pageType);
-        }
+        if (ContentFrame.CurrentSourcePageType != pageType)
+            ContentFrame.Navigate(pageType);
     }
 }
