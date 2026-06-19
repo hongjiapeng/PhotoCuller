@@ -1,8 +1,20 @@
 <Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+  </Configurations>
   <Folder Name="/src/">
-    <Project Path="src/PhotoCuller.App.WinUI/PhotoCuller.App.WinUI.csproj" />
-    <Project Path="src/PhotoCuller.Core/PhotoCuller.Core.csproj" />
-    <Project Path="src/PhotoCuller.Infrastructure/PhotoCuller.Infrastructure.csproj" />
-    <Project Path="src/PhotoCuller.Tests/PhotoCuller.Tests.csproj" />
+    <Project Path="src/PhotoCuller.App.WinUI/PhotoCuller.App.WinUI.csproj">
+      <Platform Solution="*|x64" Project="x64" />
+    </Project>
+    <Project Path="src/PhotoCuller.Core/PhotoCuller.Core.csproj">
+      <Platform Solution="*|x64" Project="x64" />
+    </Project>
+    <Project Path="src/PhotoCuller.Infrastructure/PhotoCuller.Infrastructure.csproj">
+      <Platform Solution="*|x64" Project="x64" />
+    </Project>
+    <Project Path="src/PhotoCuller.Tests/PhotoCuller.Tests.csproj">
+      <Platform Solution="*|x64" Project="x64" />
+    </Project>
   </Folder>
 </Solution>

@@ -3,6 +3,7 @@
     <OutputType>Library</OutputType>
     <RootNamespace>PhotoCuller.Core</RootNamespace>
     <AssemblyName>PhotoCuller.Core</AssemblyName>
+    <Platforms>AnyCPU;x64</Platforms>
   </PropertyGroup>
 
   <ItemGroup>

@@ -3,6 +3,7 @@
     <OutputType>Library</OutputType>
     <RootNamespace>PhotoCuller.Infrastructure</RootNamespace>
     <AssemblyName>PhotoCuller.Infrastructure</AssemblyName>
+    <Platforms>AnyCPU;x64</Platforms>
   </PropertyGroup>
 
   <!-- Allow test project to access internal members -->
