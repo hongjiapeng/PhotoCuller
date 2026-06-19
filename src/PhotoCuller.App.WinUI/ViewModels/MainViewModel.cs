@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using PhotoCuller.Core.Enums;
+using PhotoCuller.Core.Interfaces.FileOps;
 using PhotoCuller.Core.Interfaces.Hashing;
 using PhotoCuller.Core.Interfaces.Platform;
 using PhotoCuller.Core.Interfaces.Scanning;
@@ -23,6 +24,8 @@ public sealed partial class MainViewModel : ObservableObject
     private readonly IHashService _hash;
     private readonly IPerceptualHashService _pHash;
     private readonly ISettingsRepository _settings;
+    private readonly IFileMoveService _fileMover;
+    private readonly IUndoService _undo;
     private readonly IFileDialogService _fileDialog;
     private readonly INotificationService _notifications;
     private readonly ILogger<MainViewModel> _logger;
@@ -39,6 +42,8 @@ public sealed partial class MainViewModel : ObservableObject
         IHashService hash,
         IPerceptualHashService pHash,
         ISettingsRepository settings,
+        IFileMoveService fileMover,
+        IUndoService undo,
         IFileDialogService fileDialog,
         INotificationService notifications,
         ILogger<MainViewModel> logger)
@@ -52,6 +57,8 @@ public sealed partial class MainViewModel : ObservableObject
         _hash          = hash;
         _pHash         = pHash;
         _settings      = settings;
+        _fileMover     = fileMover;
+        _undo          = undo;
         _fileDialog    = fileDialog;
         _notifications = notifications;
         _logger        = logger;
@@ -197,4 +204,74 @@ public sealed partial class MainViewModel : ObservableObject
 
     partial void OnSelectedDirectoryChanged(string value)
         => StartScanCommand.NotifyCanExecuteChanged();
+
+    // ── File operations ───────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Moves all ToDelete-marked photos to the pending-delete folder.
+    /// The to-delete directory is created as a sibling of the source root.
+    /// </summary>
+    [RelayCommand]
+    public async Task MoveMarkedToTrashAsync(CancellationToken ct = default)
+    {
+        var appSettings = await _settings.LoadAsync(ct);
+        var toMove = AllPhotos
+            .Where(vm => vm.Status is RecommendationStatus.ToDelete
+                                   or RecommendationStatus.ManualDelete)
+            .Select(vm => vm.Model)
+            .ToList();
+
+        if (toMove.Count == 0) return;
+
+        // Build the trash directory path next to the selected directory
+        var trashDir = string.IsNullOrEmpty(SelectedDirectory)
+            ? Path.Combine(Path.GetTempPath(), "PhotoCuller_ToDelete")
+            : Path.Combine(
+                Path.GetDirectoryName(SelectedDirectory) ?? SelectedDirectory,
+                appSettings.ToDeleteFolderName);
+
+        var progress = new Progress<int>(n =>
+            _notifications.ShowSuccess($"已移动 {n}/{toMove.Count} 张照片"));
+
+        try
+        {
+            var logs = await _fileMover.MoveManyToTrashAsync(
+                toMove,
+                trashDir,
+                appSettings.PreserveFolderStructure,
+                progress,
+                ct);
+
+            int ok   = logs.Count(l => l.Status == Core.Enums.OperationStatus.Success);
+            int fail = logs.Count(l => l.Status == Core.Enums.OperationStatus.Failed);
+
+            if (fail > 0)
+                _notifications.ShowWarning(
+                    $"移动完成：{ok} 成功，{fail} 失败。请查看日志了解详情。");
+            else
+                _notifications.ShowSuccess(
+                    $"已将 {ok} 张照片移动到待删除目录：{trashDir}");
+
+            // Refresh pending count
+            PendingCount = AllPhotos.Count(vm =>
+                vm.Status is RecommendationStatus.Review
+                          or RecommendationStatus.ToDelete);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "MoveMarkedToTrash failed");
+            _notifications.ShowError($"移动失败：{ex.Message}");
+        }
+    }
+
+    /// <summary>Undoes the most recent file move (current run only).</summary>
+    [RelayCommand]
+    public async Task UndoLastMoveAsync(CancellationToken ct = default)
+    {
+        bool ok = await _undo.UndoLastAsync(ct);
+        if (ok)
+            _notifications.ShowSuccess("已撤销上一次移动操作");
+        else
+            _notifications.ShowWarning("没有可撤销的操作");
+    }
 }

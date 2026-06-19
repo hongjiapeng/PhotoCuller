@@ -112,7 +112,7 @@ public sealed partial class SimilarGroupsPage : Page
             foreach (var photo in group.Photos.Where(p => !p.IsKeep))
                 photo.Model.RecommendationStatus = RecommendationStatus.ToDelete;
 
-            // TODO Stage 11: call IFileMoveService
+            await _vm.MoveMarkedToTrashCommand.ExecuteAsync(null);
             RefreshStatusBar();
         }
     }
@@ -139,7 +139,8 @@ public sealed partial class SimilarGroupsPage : Page
 
         if (await dialog.ShowAsync() == ContentDialogResult.Primary)
         {
-            // TODO Stage 11: invoke IFileMoveService
+            await _vm.MoveMarkedToTrashCommand.ExecuteAsync(null);
+            RefreshStatusBar();
         }
     }
 

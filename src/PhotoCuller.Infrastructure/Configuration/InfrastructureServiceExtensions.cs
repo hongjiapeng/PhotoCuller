@@ -1,11 +1,14 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using PhotoCuller.Core.Interfaces.Ai;
+using PhotoCuller.Core.Interfaces.FileOps;
 using PhotoCuller.Core.Interfaces.Hashing;
 using PhotoCuller.Core.Interfaces.Scanning;
 using PhotoCuller.Core.Interfaces.Scoring;
 using PhotoCuller.Core.Interfaces.Storage;
 using PhotoCuller.Infrastructure.Database;
+using PhotoCuller.Infrastructure.FileSystem;
 using PhotoCuller.Infrastructure.Hashing;
 using PhotoCuller.Infrastructure.ImageProcessing;
 using PhotoCuller.Infrastructure.ImageProcessing.Scorers;
@@ -74,6 +77,13 @@ public static class InfrastructureServiceExtensions
 
         // Scoring coordinator
         services.AddTransient<IPhotoScoringService, PhotoScoringService>();
+
+        // File operations
+        services.AddTransient<IFileMoveService, FileMoveService>();
+        services.AddSingleton<IUndoService, UndoService>();
+
+        // Security
+        services.AddSingleton<IApiKeyProtector, DpapiApiKeyProtector>();
 
         return services;
     }

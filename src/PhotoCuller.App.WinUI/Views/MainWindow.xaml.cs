@@ -1,7 +1,9 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using PhotoCuller.App.WinUI.ViewModels;
 using PhotoCuller.App.WinUI.Views.Pages;
+using Windows.System;
 
 namespace PhotoCuller.App.WinUI.Views;
 
@@ -15,10 +17,20 @@ public sealed partial class MainWindow : Window
         InitializeComponent();
         ExtendsContentIntoTitleBar = true;
 
-        // Default to similar-groups page
         ContentFrame.Navigate(typeof(SimilarGroupsPage));
 
-        // Keep directory label in sync
+        // Ctrl+Z → Undo last move
+        if (Content is UIElement root)
+        {
+            root.KeyboardAccelerators.Add(new KeyboardAccelerator
+            {
+                Key       = VirtualKey.Z,
+                Modifiers = VirtualKeyModifiers.Control,
+            });
+            root.KeyboardAccelerators[0].Invoked +=
+                async (_, _) => await ViewModel.UndoLastMoveCommand.ExecuteAsync(null);
+        }
+
         ViewModel.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(MainViewModel.SelectedDirectory))
@@ -30,10 +42,7 @@ public sealed partial class MainWindow : Window
     }
 
     private void NavButton_Click(object sender, RoutedEventArgs e)
-    {
-        var tag = (sender as FrameworkElement)?.Tag?.ToString();
-        Navigate(tag);
-    }
+        => Navigate((sender as FrameworkElement)?.Tag?.ToString());
 
     private void Navigate(string? tag)
     {
