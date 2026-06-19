@@ -84,6 +84,11 @@ public sealed class DuplicateGroupingService : IDuplicateGroupingService
         foreach (var group in groups)
             AssignRecommendation(group);
 
+        // Log final group details
+        int idx = 0;
+        foreach (var g in groups.Where(g => g.GroupType == GroupType.Similar))
+            Log.SimilarGroupCreated(_logger, ++idx, g.PhotoCount, g.RecommendedPhotoId);
+
         Log.GroupingComplete(_logger, groups.Count,
             groups.Count(g => g.GroupType == GroupType.ExactDuplicate),
             groups.Count(g => g.GroupType == GroupType.Burst),
@@ -214,14 +219,17 @@ public sealed class DuplicateGroupingService : IDuplicateGroupingService
             .Where(p => !grouped.Contains(p.Id) && p.PerceptualHash.HasValue)
             .ToList();
 
+        Log.PHashCandidates(_logger, candidates.Count, photos.Count);
+
         if (candidates.Count < 2)
             yield break;
 
         var threshold = _settings.SimilarityThresholdPossible;
         var uf = new UnionFind(candidates.Count);
 
-        // O(n²) pairwise comparison — acceptable for typical library sizes
-        // For very large libraries (>50k), a VP-tree or LSH index would be needed
+        int similarPairs = 0;
+        long totalPairs  = (long)candidates.Count * (candidates.Count - 1) / 2;
+
         for (int i = 0; i < candidates.Count; i++)
         {
             ct.ThrowIfCancellationRequested();
@@ -232,9 +240,12 @@ public sealed class DuplicateGroupingService : IDuplicateGroupingService
                     candidates[j].PerceptualHash!.Value) <= threshold)
                 {
                     uf.Union(i, j);
+                    similarPairs++;
                 }
             }
         }
+
+        Log.PHashComparisons(_logger, totalPairs, similarPairs, threshold);
 
         // Collect groups with ≥ 2 members
         var clusters = new Dictionary<int, List<PhotoItem>>();
@@ -246,13 +257,14 @@ public sealed class DuplicateGroupingService : IDuplicateGroupingService
             clusters[root].Add(candidates[i]);
         }
 
+        int groupIndex = 0;
         foreach (var cluster in clusters.Values.Where(c => c.Count >= 2))
         {
             var group = new PhotoGroup
             {
-                GroupType  = GroupType.Similar,
-                Name       = $"Similar ({cluster.Count} photos)",
-                PhotoCount = cluster.Count,
+                GroupType       = GroupType.Similar,
+                Name            = $"Similar ({cluster.Count} photos)",
+                PhotoCount      = cluster.Count,
                 SimilarityScore = 0.75f,
             };
 
@@ -262,6 +274,10 @@ public sealed class DuplicateGroupingService : IDuplicateGroupingService
                 group.Photos.Add(photo);
                 grouped.Add(photo.Id);
             }
+
+            groupIndex++;
+            // RecommendedPhotoId is set later by AssignRecommendation
+            Log.SimilarGroupCreated(_logger, groupIndex, cluster.Count, null);
 
             yield return group;
         }

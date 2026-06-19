@@ -82,4 +82,18 @@ internal static partial class Log
     [LoggerMessage(Level = LogLevel.Error,
         Message = "Failed to flush photo batch of {Count} items.")]
     internal static partial void BatchFlushFailed(ILogger logger, Exception ex, int count);
+
+    // ── Grouping diagnostics ──────────────────────────────────────────────────
+
+    [LoggerMessage(Level = LogLevel.Information,
+        Message = "pHash candidates: {Count} photos with hash (out of {Total} total)")]
+    internal static partial void PHashCandidates(ILogger logger, int count, int total);
+
+    [LoggerMessage(Level = LogLevel.Information,
+        Message = "pHash pairs compared: {Pairs}, similar pairs found: {Similar} (threshold ≤ {Threshold})")]
+    internal static partial void PHashComparisons(ILogger logger, long pairs, int similar, int threshold);
+
+    [LoggerMessage(Level = LogLevel.Information,
+        Message = "Similar group #{Index}: {Count} photos, recommended={RecommendedId}")]
+    internal static partial void SimilarGroupCreated(ILogger logger, int index, int count, Guid? recommendedId);
 }

@@ -78,6 +78,11 @@ public sealed class PhotoRepository : IPhotoRepository
     {
         try
         {
+            // Detach navigation properties so EF Core does not try to
+            // re-insert already-persisted PhotoGroup entities
+            foreach (var p in batch)
+                p.Group = null;
+
             _db.Photos.AddRange(batch);
             await _db.SaveChangesAsync(ct);
             _db.ChangeTracker.Clear();

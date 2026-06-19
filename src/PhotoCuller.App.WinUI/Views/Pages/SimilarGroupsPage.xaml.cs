@@ -12,13 +12,18 @@ public sealed partial class SimilarGroupsPage : Page
 
     public SimilarGroupsPage() => InitializeComponent();
 
-    protected override void OnNavigatedTo(NavigationEventArgs e)
+    protected override async void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
         _vm = App.Services.GetService(typeof(MainViewModel)) as MainViewModel;
         if (_vm is null) return;
 
         _vm.PropertyChanged += Vm_PropertyChanged;
+
+        // If Groups is empty (e.g. app just restarted), load from DB
+        if (_vm.Groups.Count == 0)
+            await _vm.LoadFromDatabaseAsync();
+
         Refresh();
     }
 
@@ -138,10 +143,7 @@ public sealed partial class SimilarGroupsPage : Page
         };
 
         if (await dialog.ShowAsync() == ContentDialogResult.Primary)
-        {
             await _vm.MoveMarkedToTrashCommand.ExecuteAsync(null);
-            RefreshStatusBar();
-        }
     }
 
     private void ExportReport_Click(object sender, RoutedEventArgs e)
