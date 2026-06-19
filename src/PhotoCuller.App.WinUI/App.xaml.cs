@@ -138,11 +138,11 @@ public partial class App : Application
                     return new MainWindow(vm);
                 });
                 services.AddSingleton<IFileDialogService>(sp =>
-                    new WinUIFileDialogService(sp.GetRequiredService<MainWindow>()));
+                    new WinUIFileDialogService(sp.GetRequiredService<MainWindow>));
                 services.AddSingleton<INotificationService>(sp =>
-                    new WinUINotificationService(sp.GetRequiredService<MainWindow>()));
+                    new WinUINotificationService(sp.GetRequiredService<MainWindow>));
                 services.AddSingleton<IThemeService>(sp =>
-                    new WinUIThemeService(sp.GetRequiredService<MainWindow>()));
+                    new WinUIThemeService(sp.GetRequiredService<MainWindow>));
                 services.AddSingleton<IOpenFileLocationService,
                     WinUIOpenFileLocationService>();
 

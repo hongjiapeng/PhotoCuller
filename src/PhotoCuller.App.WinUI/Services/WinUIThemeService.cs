@@ -6,15 +6,15 @@ namespace PhotoCuller.App.WinUI.Services;
 
 public sealed class WinUIThemeService : IThemeService
 {
-    private readonly Window _window;
+    private readonly Func<MainWindow> _getWindow;
 
-    public WinUIThemeService(MainWindow window) => _window = window;
+    public WinUIThemeService(Func<MainWindow> getWindow) => _getWindow = getWindow;
 
     public string CurrentTheme
     {
         get
         {
-            if (_window.Content is FrameworkElement fe)
+            if (_getWindow().Content is FrameworkElement fe)
                 return fe.RequestedTheme == ElementTheme.Light ? "Light" : "Dark";
             return "Dark";
         }
@@ -22,7 +22,7 @@ public sealed class WinUIThemeService : IThemeService
 
     public void ApplyTheme(string theme)
     {
-        if (_window.Content is not FrameworkElement fe) return;
+        if (_getWindow().Content is not FrameworkElement fe) return;
         fe.RequestedTheme = theme switch
         {
             "Light"  => ElementTheme.Light,

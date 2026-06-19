@@ -8,9 +8,9 @@ namespace PhotoCuller.App.WinUI.Services;
 
 public sealed class WinUIFileDialogService : IFileDialogService
 {
-    private readonly Window _window;
+    private readonly Func<MainWindow> _getWindow;
 
-    public WinUIFileDialogService(MainWindow window) => _window = window;
+    public WinUIFileDialogService(Func<MainWindow> getWindow) => _getWindow = getWindow;
 
     public async Task<string?> PickFolderAsync()
     {
@@ -18,7 +18,7 @@ public sealed class WinUIFileDialogService : IFileDialogService
         picker.SuggestedStartLocation = PickerLocationId.PicturesLibrary;
         picker.FileTypeFilter.Add("*");
 
-        var hwnd = WindowNative.GetWindowHandle(_window);
+        var hwnd = WindowNative.GetWindowHandle(_getWindow());
         InitializeWithWindow.Initialize(picker, hwnd);
 
         var folder = await picker.PickSingleFolderAsync();
@@ -36,7 +36,7 @@ public sealed class WinUIFileDialogService : IFileDialogService
         foreach (var ext in exts)
             picker.FileTypeFilter.Add(ext.Trim());
 
-        var hwnd = WindowNative.GetWindowHandle(_window);
+        var hwnd = WindowNative.GetWindowHandle(_getWindow());
         InitializeWithWindow.Initialize(picker, hwnd);
 
         if (multiSelect)

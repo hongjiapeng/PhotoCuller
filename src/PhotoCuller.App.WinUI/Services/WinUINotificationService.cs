@@ -8,9 +8,9 @@ namespace PhotoCuller.App.WinUI.Services;
 
 public sealed class WinUINotificationService : INotificationService
 {
-    private readonly Window _window;
+    private readonly Func<MainWindow> _getWindow;
 
-    public WinUINotificationService(MainWindow window) => _window = window;
+    public WinUINotificationService(Func<MainWindow> getWindow) => _getWindow = getWindow;
 
     public void ShowSuccess(string message) => Show(message, InfoBarSeverity.Success);
     public void ShowWarning(string message) => Show(message, InfoBarSeverity.Warning);
@@ -18,9 +18,10 @@ public sealed class WinUINotificationService : INotificationService
 
     private void Show(string message, InfoBarSeverity severity)
     {
-        _window.DispatcherQueue.TryEnqueue(() =>
+        var window = _getWindow();
+        window.DispatcherQueue.TryEnqueue(() =>
         {
-            if (_window.Content is not FrameworkElement root) return;
+            if (window.Content is not FrameworkElement root) return;
 
             var infoBar = new InfoBar
             {
@@ -35,7 +36,7 @@ public sealed class WinUINotificationService : INotificationService
             {
                 host.Children.Add(infoBar);
                 // Auto-dismiss after 4 s
-                var timer = _window.DispatcherQueue.CreateTimer();
+                var timer = window.DispatcherQueue.CreateTimer();
                 timer.Interval = TimeSpan.FromSeconds(4);
                 timer.Tick += (_, _) =>
                 {
