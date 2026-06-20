@@ -37,7 +37,24 @@ public sealed partial class PhotoItemViewModel : ObservableObject
 
     public RecommendationStatus Status => Model.RecommendationStatus;
     public bool IsKeep => Status is RecommendationStatus.Keep or RecommendationStatus.ManualKeep;
+    public bool IsMovedToTrash => Model.IsMovedToTrash;
     public string? ErrorMessage => Model.ErrorMessage;
+
+    public void SetStatus(RecommendationStatus status)
+    {
+        if (Model.RecommendationStatus == status)
+            return;
+
+        Model.RecommendationStatus = status;
+        NotifyStatusChanged();
+    }
+
+    public void NotifyStatusChanged()
+    {
+        OnPropertyChanged(nameof(Status));
+        OnPropertyChanged(nameof(IsKeep));
+        OnPropertyChanged(nameof(IsMovedToTrash));
+    }
 
     /// <summary>Score badge label for the group row (e.g. "92" or "—").</summary>
     public string ScoreLabel =>

@@ -123,8 +123,7 @@ public sealed partial class MainViewModel : ObservableObject
     public IEnumerable<PhotoItemViewModel> TrashPhotos =>
         AllPhotos.Where(p => p.Status is RecommendationStatus.ToDelete
                                       or RecommendationStatus.ManualDelete
-                                      or RecommendationStatus.Unprocessed &&
-                                         p.Model.IsMovedToTrash);
+                              || p.IsMovedToTrash);
 
     // ── RefreshCounts (call after any status change) ──────────────────────────
 
@@ -134,7 +133,8 @@ public sealed partial class MainViewModel : ObservableObject
             RecommendationStatus.Keep or RecommendationStatus.ManualKeep);
         PendingCount   = AllPhotos.Count(p => p.Status == RecommendationStatus.Review);
         TrashCount     = AllPhotos.Count(p => p.Status is
-            RecommendationStatus.ToDelete or RecommendationStatus.ManualDelete);
+            RecommendationStatus.ToDelete or RecommendationStatus.ManualDelete
+            || p.IsMovedToTrash);
         DuplicateCount = Groups.Count(g => g.GroupType == GroupType.ExactDuplicate);
     }
 
@@ -144,7 +144,7 @@ public sealed partial class MainViewModel : ObservableObject
     public void MarkKeep(PhotoItemViewModel? vm)
     {
         if (vm is null) return;
-        vm.Model.RecommendationStatus = RecommendationStatus.ManualKeep;
+        vm.SetStatus(RecommendationStatus.ManualKeep);
         RefreshCounts();
     }
 
@@ -152,7 +152,7 @@ public sealed partial class MainViewModel : ObservableObject
     public void MarkDelete(PhotoItemViewModel? vm)
     {
         if (vm is null) return;
-        vm.Model.RecommendationStatus = RecommendationStatus.ManualDelete;
+        vm.SetStatus(RecommendationStatus.ManualDelete);
         RefreshCounts();
     }
 
@@ -160,7 +160,7 @@ public sealed partial class MainViewModel : ObservableObject
     public void MarkReview(PhotoItemViewModel? vm)
     {
         if (vm is null) return;
-        vm.Model.RecommendationStatus = RecommendationStatus.Review;
+        vm.SetStatus(RecommendationStatus.Review);
         RefreshCounts();
     }
 
@@ -446,11 +446,11 @@ public sealed partial class MainViewModel : ObservableObject
     public async Task MoveMarkedToTrashAsync(CancellationToken ct = default)
     {
         var appSettings = await _settings.LoadAsync(ct);
-        var toMove = AllPhotos
+        var toMoveVms = AllPhotos
             .Where(vm => vm.Status is RecommendationStatus.ToDelete
                                    or RecommendationStatus.ManualDelete)
-            .Select(vm => vm.Model)
             .ToList();
+        var toMove = toMoveVms.Select(vm => vm.Model).ToList();
 
         if (toMove.Count == 0) return;
 
@@ -476,8 +476,10 @@ public sealed partial class MainViewModel : ObservableObject
             else
                 _notifications.ShowSuccess($"已将 {ok} 张照片移动到待删除目录：{trashDir}");
 
-            PendingCount = AllPhotos.Count(vm =>
-                vm.Status is RecommendationStatus.Review or RecommendationStatus.ToDelete);
+            foreach (var vm in toMoveVms)
+                vm.NotifyStatusChanged();
+
+            RefreshCounts();
         }
         catch (Exception ex)
         {

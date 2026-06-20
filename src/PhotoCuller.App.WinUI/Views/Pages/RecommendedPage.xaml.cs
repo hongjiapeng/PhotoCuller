@@ -10,6 +10,7 @@ public sealed partial class RecommendedPage : Page
     protected override void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
-        Frame.Navigate(typeof(FilteredPhotoPage), FilteredPhotoPage.FilterMode.Keep);
+        if (FilteredFrame.CurrentSourcePageType != typeof(FilteredPhotoPage))
+            FilteredFrame.Navigate(typeof(FilteredPhotoPage), FilteredPhotoPage.FilterMode.Keep);
     }
 }

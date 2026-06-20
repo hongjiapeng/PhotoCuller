@@ -10,6 +10,7 @@ public sealed partial class PendingPage : Page
     protected override void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
-        Frame.Navigate(typeof(FilteredPhotoPage), FilteredPhotoPage.FilterMode.Review);
+        if (FilteredFrame.CurrentSourcePageType != typeof(FilteredPhotoPage))
+            FilteredFrame.Navigate(typeof(FilteredPhotoPage), FilteredPhotoPage.FilterMode.Review);
     }
 }

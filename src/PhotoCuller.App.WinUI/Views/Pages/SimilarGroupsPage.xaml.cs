@@ -115,7 +115,7 @@ public sealed partial class SimilarGroupsPage : Page
         if (await dialog.ShowAsync() == ContentDialogResult.Primary)
         {
             foreach (var photo in group.Photos.Where(p => !p.IsKeep))
-                photo.Model.RecommendationStatus = RecommendationStatus.ToDelete;
+                _vm.MarkDeleteCommand.Execute(photo);
 
             await _vm.MoveMarkedToTrashCommand.ExecuteAsync(null);
             RefreshStatusBar();

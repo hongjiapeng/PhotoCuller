@@ -61,10 +61,11 @@
                   VirtualizingStackPanel.VirtualizationMode="Recycling">
             <GridView.ItemTemplate>
                 <DataTemplate x:DataType="vm:PhotoItemViewModel">
-                    <Grid Width="136" Margin="4"
+                    <Grid Width="152" Margin="4"
                           ToolTipService.ToolTip="{x:Bind FileName}">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="124"/>
+                            <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
@@ -110,6 +111,42 @@
                                    FontSize="11" Opacity="0.7"
                                    TextTrimming="CharacterEllipsis"
                                    Margin="2,3,2,0"/>
+
+                        <StackPanel Grid.Row="2"
+                                    Orientation="Horizontal"
+                                    Spacing="3"
+                                    Margin="2,4,2,0">
+                            <Button Padding="7,3"
+                                    FontSize="11"
+                                    Tag="{x:Bind Id}"
+                                    Click="MarkKeep_Click"
+                                    ToolTipService.ToolTip="标记保留">
+                                <StackPanel Orientation="Horizontal" Spacing="3">
+                                    <FontIcon Glyph="&#xE734;" FontSize="11"/>
+                                    <TextBlock Text="保留"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Padding="7,3"
+                                    FontSize="11"
+                                    Tag="{x:Bind Id}"
+                                    Click="MarkReview_Click"
+                                    ToolTipService.ToolTip="标记待确认">
+                                <StackPanel Orientation="Horizontal" Spacing="3">
+                                    <FontIcon Glyph="&#xE916;" FontSize="11"/>
+                                    <TextBlock Text="确认"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Padding="7,3"
+                                    FontSize="11"
+                                    Tag="{x:Bind Id}"
+                                    Click="MarkDelete_Click"
+                                    ToolTipService.ToolTip="标记待删除">
+                                <StackPanel Orientation="Horizontal" Spacing="3">
+                                    <FontIcon Glyph="&#xE74D;" FontSize="11"/>
+                                    <TextBlock Text="待删"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
                     </Grid>
                 </DataTemplate>
             </GridView.ItemTemplate>
@@ -129,6 +166,8 @@
                     Spacing="12" Visibility="Collapsed">
             <FontIcon x:Name="EmptyIcon" FontSize="56" Opacity="0.2"/>
             <TextBlock x:Name="EmptyText" FontSize="16" Opacity="0.4"
+                       HorizontalAlignment="Center"/>
+            <TextBlock x:Name="EmptyHint" FontSize="12" Opacity="0.35"
                        HorizontalAlignment="Center"/>
         </StackPanel>
 
