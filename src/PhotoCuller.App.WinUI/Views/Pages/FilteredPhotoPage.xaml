@@ -61,7 +61,7 @@
                   VirtualizingStackPanel.VirtualizationMode="Recycling">
             <GridView.ItemTemplate>
                 <DataTemplate x:DataType="vm:PhotoItemViewModel">
-                    <Grid Width="152" Margin="4"
+                    <Grid Width="168" Margin="4"
                           ToolTipService.ToolTip="{x:Bind FileName}">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="124"/>
@@ -133,7 +133,7 @@
                                     ToolTipService.ToolTip="标记待确认">
                                 <StackPanel Orientation="Horizontal" Spacing="3">
                                     <FontIcon Glyph="&#xE916;" FontSize="11"/>
-                                    <TextBlock Text="确认"/>
+                                    <TextBlock Text="待确认"/>
                                 </StackPanel>
                             </Button>
                             <Button Padding="7,3"

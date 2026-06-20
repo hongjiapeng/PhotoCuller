@@ -94,17 +94,17 @@ public sealed partial class FilteredPhotoPage : Page
                 BatchBtn.Content = "全部标记为待确认";
                 break;
             case FilterMode.Review:
-                PageTitle.Text   = "待确认 / 待删除";
+                PageTitle.Text   = "待确认";
                 EmptyIcon.Glyph  = "";
                 EmptyText.Text   = "暂无待处理照片";
                 EmptyHint.Text   = "需要人工判断的照片会汇总到这里";
-                BatchBtn.Content = "全部移动到待删除";
+                BatchBtn.Content = "全部标记待删除";
                 break;
             case FilterMode.Trash:
                 PageTitle.Text   = "待删除";
                 EmptyIcon.Glyph  = "";
                 EmptyText.Text   = "待删除目录为空";
-                EmptyHint.Text   = "被标记待删除或已移入待删除目录的照片会显示在这里";
+                EmptyHint.Text   = "已标记待删除的照片会在这里做最后检查";
                 BatchBtn.Content = "移动所有到待删除目录";
                 break;
         }
@@ -209,8 +209,8 @@ public sealed partial class FilteredPhotoPage : Page
 
                 var dialog = new ContentDialog
                 {
-                    Title             = "确认移动",
-                    Content           = $"将把 {reviewPhotos.Count} 张待确认照片移入待删除目录，是否继续？",
+                    Title             = "标记待删除",
+                    Content           = $"将把 {reviewPhotos.Count} 张待确认照片标记为待删除。\n稍后可在“待删除”页最终移动到待删除目录。",
                     PrimaryButtonText = "继续",
                     CloseButtonText   = "取消",
                     DefaultButton     = ContentDialogButton.Close,
@@ -220,7 +220,6 @@ public sealed partial class FilteredPhotoPage : Page
                 {
                     foreach (var vm in reviewPhotos)
                         _vm.MarkDeleteCommand.Execute(vm);
-                    await _vm.MoveMarkedToTrashCommand.ExecuteAsync(null);
                     ApplyFilter();
                 }
                 break;

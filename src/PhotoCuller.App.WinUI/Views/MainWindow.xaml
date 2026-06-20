@@ -159,7 +159,7 @@
                                 </Grid.ColumnDefinitions>
                                 <FontIcon Glyph="&#xE916;" FontSize="14"
                                           Grid.Column="0" VerticalAlignment="Center"/>
-                                <TextBlock Text="待确认/待删除" FontSize="12"
+                                <TextBlock Text="待确认" FontSize="13"
                                            Grid.Column="1" Margin="6,0,0,0"
                                            VerticalAlignment="Center"
                                            TextTrimming="CharacterEllipsis"/>
