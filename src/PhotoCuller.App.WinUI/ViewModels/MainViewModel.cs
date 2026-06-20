@@ -74,7 +74,9 @@ public sealed partial class MainViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(DirectoryDisplayName))]
     private string _selectedDirectory = string.Empty;
 
-    [ObservableProperty] private bool _isScanning;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ScanToggleButtonContent))]
+    private bool _isScanning;
     [ObservableProperty] private ScanProgress _scanProgress = ScanProgress.Idle;
     [ObservableProperty] private int _totalPhotoCount;
     [ObservableProperty] private int _groupCount;
@@ -91,6 +93,9 @@ public sealed partial class MainViewModel : ObservableObject
 #pragma warning restore MVVMTK0045
 
     public bool HasSelectedPhoto => SelectedPhoto is not null;
+
+    public string ScanToggleButtonContent =>
+        IsScanning ? "■  停止扫描" : "▶  开始扫描";
 
     /// <summary>
     /// Short display name for the selected directory shown in the nav panel.
@@ -229,6 +234,18 @@ public sealed partial class MainViewModel : ObservableObject
     }
 
     // ── Scan ──────────────────────────────────────────────────────────────────
+
+    [RelayCommand(CanExecute = nameof(CanToggleScan))]
+    private async Task ToggleScanAsync()
+    {
+        if (IsScanning)
+        {
+            StopScan();
+            return;
+        }
+
+        await StartScanAsync();
+    }
 
     [RelayCommand(CanExecute = nameof(CanStartScan))]
     private async Task StartScanAsync()
@@ -404,6 +421,9 @@ public sealed partial class MainViewModel : ObservableObject
     private bool CanStartScan()
         => !IsScanning && !string.IsNullOrEmpty(SelectedDirectory);
 
+    private bool CanToggleScan()
+        => IsScanning || CanStartScan();
+
     [RelayCommand(CanExecute = nameof(IsScanning))]
     private void StopScan() => _scanCts?.Cancel();
 
@@ -411,10 +431,14 @@ public sealed partial class MainViewModel : ObservableObject
     {
         StartScanCommand.NotifyCanExecuteChanged();
         StopScanCommand.NotifyCanExecuteChanged();
+        ToggleScanCommand.NotifyCanExecuteChanged();
     }
 
     partial void OnSelectedDirectoryChanged(string value)
-        => StartScanCommand.NotifyCanExecuteChanged();
+    {
+        StartScanCommand.NotifyCanExecuteChanged();
+        ToggleScanCommand.NotifyCanExecuteChanged();
+    }
 
     // ── File operations ───────────────────────────────────────────────────────
 

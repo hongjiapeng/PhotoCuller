@@ -64,15 +64,11 @@
                                     Command="{x:Bind ViewModel.PickDirectoryCommand}"/>
                         </Grid>
 
-                        <Button Content="▶  开始扫描"
+                        <Button Content="{x:Bind ViewModel.ScanToggleButtonContent, Mode=OneWay}"
                                 HorizontalAlignment="Stretch"
                                 Style="{StaticResource AccentButtonStyle}"
-                                Margin="4,0,4,2"
-                                Command="{x:Bind ViewModel.StartScanCommand}"/>
-                        <Button Content="■  停止扫描"
-                                HorizontalAlignment="Stretch"
                                 Margin="4,0,4,8"
-                                Command="{x:Bind ViewModel.StopScanCommand}"/>
+                                Command="{x:Bind ViewModel.ToggleScanCommand}"/>
 
                         <!-- Filter nav items -->
                         <MenuFlyoutSeparator Margin="8,4"/>
