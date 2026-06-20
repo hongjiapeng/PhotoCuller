@@ -22,23 +22,15 @@ public sealed partial class MainWindow : Window
         // Ctrl+Z → Undo last move
         if (Content is UIElement root)
         {
-            root.KeyboardAccelerators.Add(new KeyboardAccelerator
+            var accel = new KeyboardAccelerator
             {
                 Key       = VirtualKey.Z,
                 Modifiers = VirtualKeyModifiers.Control,
-            });
-            root.KeyboardAccelerators[0].Invoked +=
-                async (_, _) => await ViewModel.UndoLastMoveCommand.ExecuteAsync(null);
+            };
+            accel.Invoked += async (_, _) =>
+                await ViewModel.UndoLastMoveCommand.ExecuteAsync(null);
+            root.KeyboardAccelerators.Add(accel);
         }
-
-        ViewModel.PropertyChanged += (_, e) =>
-        {
-            if (e.PropertyName == nameof(MainViewModel.SelectedDirectory))
-                DirLabel.Text = string.IsNullOrEmpty(ViewModel.SelectedDirectory)
-                    ? "未选择目录"
-                    : System.IO.Path.GetFileName(ViewModel.SelectedDirectory)
-                      is { Length: > 0 } name ? name : ViewModel.SelectedDirectory;
-        };
     }
 
     private void NavButton_Click(object sender, RoutedEventArgs e)

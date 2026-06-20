@@ -1,9 +1,3 @@
-<Page
-    x:Class="PhotoCuller.App.WinUI.Views.Pages.PendingPage"
-    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <Grid>
-        <TextBlock Text="待处理" Style="{StaticResource TitleTextBlockStyle}"
-                   VerticalAlignment="Center" HorizontalAlignment="Center"/>
-    </Grid>
-</Page>
+<Page x:Class="PhotoCuller.App.WinUI.Views.Pages.PendingPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"/>

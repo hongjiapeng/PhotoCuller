@@ -70,12 +70,18 @@ public sealed partial class MainViewModel : ObservableObject
     // ── State ────────────────────────────────────────────────────────────────
 
 #pragma warning disable MVVMTK0045
-    [ObservableProperty] private string _selectedDirectory = string.Empty;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DirectoryDisplayName))]
+    private string _selectedDirectory = string.Empty;
+
     [ObservableProperty] private bool _isScanning;
     [ObservableProperty] private ScanProgress _scanProgress = ScanProgress.Idle;
     [ObservableProperty] private int _totalPhotoCount;
     [ObservableProperty] private int _groupCount;
+    [ObservableProperty] private int _keepCount;
     [ObservableProperty] private int _pendingCount;
+    [ObservableProperty] private int _trashCount;
+    [ObservableProperty] private int _duplicateCount;
     [ObservableProperty] private string _scanDuration = "—";
     [ObservableProperty] private string _lastScanTime = "—";
 
@@ -86,8 +92,72 @@ public sealed partial class MainViewModel : ObservableObject
 
     public bool HasSelectedPhoto => SelectedPhoto is not null;
 
+    /// <summary>
+    /// Short display name for the selected directory shown in the nav panel.
+    /// Shows just the folder name (e.g. "2024旅行") rather than the full path.
+    /// </summary>
+    public string DirectoryDisplayName =>
+        string.IsNullOrEmpty(SelectedDirectory)
+            ? "未选择目录"
+            : Path.GetFileName(SelectedDirectory) is { Length: > 0 } name
+                ? name
+                : SelectedDirectory;
+
     public ObservableCollection<PhotoGroupViewModel> Groups    { get; } = [];
     public ObservableCollection<PhotoItemViewModel>  AllPhotos { get; } = [];
+
+    // ── Filtered views (computed from AllPhotos) ──────────────────────────────
+
+    public IEnumerable<PhotoItemViewModel> KeepPhotos =>
+        AllPhotos.Where(p => p.Status is RecommendationStatus.Keep
+                                      or RecommendationStatus.ManualKeep);
+
+    public IEnumerable<PhotoItemViewModel> PendingPhotos =>
+        AllPhotos.Where(p => p.Status == RecommendationStatus.Review);
+
+    public IEnumerable<PhotoItemViewModel> TrashPhotos =>
+        AllPhotos.Where(p => p.Status is RecommendationStatus.ToDelete
+                                      or RecommendationStatus.ManualDelete
+                                      or RecommendationStatus.Unprocessed &&
+                                         p.Model.IsMovedToTrash);
+
+    // ── RefreshCounts (call after any status change) ──────────────────────────
+
+    public void RefreshCounts()
+    {
+        KeepCount      = AllPhotos.Count(p => p.Status is
+            RecommendationStatus.Keep or RecommendationStatus.ManualKeep);
+        PendingCount   = AllPhotos.Count(p => p.Status == RecommendationStatus.Review);
+        TrashCount     = AllPhotos.Count(p => p.Status is
+            RecommendationStatus.ToDelete or RecommendationStatus.ManualDelete);
+        DuplicateCount = Groups.Count(g => g.GroupType == GroupType.ExactDuplicate);
+    }
+
+    // ── Mark commands (used by detail panel buttons and context menus) ────────
+
+    [RelayCommand]
+    public void MarkKeep(PhotoItemViewModel? vm)
+    {
+        if (vm is null) return;
+        vm.Model.RecommendationStatus = RecommendationStatus.ManualKeep;
+        RefreshCounts();
+    }
+
+    [RelayCommand]
+    public void MarkDelete(PhotoItemViewModel? vm)
+    {
+        if (vm is null) return;
+        vm.Model.RecommendationStatus = RecommendationStatus.ManualDelete;
+        RefreshCounts();
+    }
+
+    [RelayCommand]
+    public void MarkReview(PhotoItemViewModel? vm)
+    {
+        if (vm is null) return;
+        vm.Model.RecommendationStatus = RecommendationStatus.Review;
+        RefreshCounts();
+    }
 
     // ── Commands ─────────────────────────────────────────────────────────────
 
@@ -296,10 +366,11 @@ public sealed partial class MainViewModel : ObservableObject
             }
 
             GroupCount   = photoGroups.Count;
-            PendingCount = allPhotos.Count(p =>
-                p.RecommendationStatus == RecommendationStatus.Review);
             LastScanTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
             ScanDuration = $"{(DateTime.Now - started).TotalSeconds:F0}s";
+
+            // Refresh all nav counts
+            RefreshCounts();
 
             // Persist last-used directory
             appSettings.LastSelectedDirectory = SelectedDirectory;

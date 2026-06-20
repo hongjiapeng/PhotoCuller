@@ -118,13 +118,19 @@ public sealed partial class PhotoDetailPanel : UserControl
     private void BtnFavorite_Click(object sender, RoutedEventArgs e)
     {
         if (SelectedPhoto is null) return;
-        SelectedPhoto.Model.RecommendationStatus = RecommendationStatus.ManualKeep;
+        var vm = App.Services.GetService(typeof(
+            PhotoCuller.App.WinUI.ViewModels.MainViewModel))
+            as PhotoCuller.App.WinUI.ViewModels.MainViewModel;
+        vm?.MarkKeepCommand.Execute(SelectedPhoto);
     }
 
     private void BtnMarkDelete_Click(object sender, RoutedEventArgs e)
     {
         if (SelectedPhoto is null) return;
-        SelectedPhoto.Model.RecommendationStatus = RecommendationStatus.ToDelete;
+        var vm = App.Services.GetService(typeof(
+            PhotoCuller.App.WinUI.ViewModels.MainViewModel))
+            as PhotoCuller.App.WinUI.ViewModels.MainViewModel;
+        vm?.MarkDeleteCommand.Execute(SelectedPhoto);
     }
 
     private async void BtnAiReason_Click(object sender, RoutedEventArgs e)

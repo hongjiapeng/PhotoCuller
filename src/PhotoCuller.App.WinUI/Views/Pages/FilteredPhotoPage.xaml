@@ -1,0 +1,143 @@
+<Page
+    x:Class="PhotoCuller.App.WinUI.Views.Pages.FilteredPhotoPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:PhotoCuller.App.WinUI.ViewModels"
+    xmlns:conv="using:PhotoCuller.App.WinUI.Converters"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <Page.Resources>
+        <conv:BoolToVisibilityConverter   x:Key="BoolToVis"/>
+        <conv:StringToVisibilityConverter x:Key="StringToVis"/>
+        <conv:ScoreConverter              x:Key="ScoreConv"/>
+        <conv:StatusToBrushConverter      x:Key="StatusBrush"/>
+        <conv:StatusToLabelConverter      x:Key="StatusLabel"/>
+        <conv:PathToImageConverter        x:Key="PathToImage"/>
+        <conv:FileSizeConverter           x:Key="SizeConv"/>
+    </Page.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Toolbar -->
+        <Grid Grid.Row="0" Padding="14,10,14,8" ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.Column="0" x:Name="PageTitle"
+                       Style="{StaticResource SubtitleTextBlockStyle}"
+                       VerticalAlignment="Center"/>
+            <TextBlock Grid.Column="1" x:Name="CountLabel"
+                       FontSize="12" Opacity="0.5" Margin="8,0,0,0"
+                       VerticalAlignment="Center"/>
+
+            <AutoSuggestBox Grid.Column="2" x:Name="SearchBox"
+                            PlaceholderText="搜索文件名..."
+                            QueryIcon="Find" Width="200"
+                            HorizontalAlignment="Right"
+                            TextChanged="SearchBox_TextChanged"/>
+
+            <!-- Batch action button (context-sensitive) -->
+            <Button Grid.Column="3" x:Name="BatchBtn"
+                    Margin="8,0,0,0" Padding="10,5" FontSize="12"
+                    Click="BatchBtn_Click"/>
+        </Grid>
+
+        <!-- Photo grid (virtualized) -->
+        <GridView Grid.Row="1"
+                  x:Name="PhotoGrid"
+                  Padding="10,0,10,10"
+                  SelectionMode="Single"
+                  IsItemClickEnabled="True"
+                  ItemClick="PhotoGrid_ItemClick"
+                  VirtualizingStackPanel.VirtualizationMode="Recycling">
+            <GridView.ItemTemplate>
+                <DataTemplate x:DataType="vm:PhotoItemViewModel">
+                    <Grid Width="136" Margin="4"
+                          ToolTipService.ToolTip="{x:Bind FileName}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="124"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <Border Grid.Row="0" CornerRadius="6"
+                                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+                            <Grid>
+                                <Image Source="{x:Bind ThumbnailPath,
+                                               Converter={StaticResource PathToImage}}"
+                                       Stretch="UniformToFill"/>
+
+                                <!-- Error overlay -->
+                                <Border Background="#CC1A1A1A" CornerRadius="6"
+                                        Visibility="{x:Bind ErrorMessage,
+                                            Converter={StaticResource StringToVis}}">
+                                    <FontIcon Glyph="&#xEA39;" FontSize="24"
+                                              Foreground="#EF4444"
+                                              VerticalAlignment="Center"
+                                              HorizontalAlignment="Center"/>
+                                </Border>
+
+                                <!-- Score badge -->
+                                <Border VerticalAlignment="Bottom" HorizontalAlignment="Right"
+                                        Background="#CC000000" CornerRadius="4,0,6,0" Padding="5,2">
+                                    <TextBlock Text="{x:Bind OverallScore,
+                                                      Converter={StaticResource ScoreConv}}"
+                                               FontSize="12" FontWeight="Bold" Foreground="White"/>
+                                </Border>
+
+                                <!-- Status badge -->
+                                <Border VerticalAlignment="Top" HorizontalAlignment="Left"
+                                        CornerRadius="6,0,4,0" Padding="5,2"
+                                        Background="{x:Bind Status,
+                                                     Converter={StaticResource StatusBrush}}">
+                                    <TextBlock Text="{x:Bind Status,
+                                                      Converter={StaticResource StatusLabel}}"
+                                               FontSize="10" FontWeight="SemiBold"
+                                               Foreground="White"/>
+                                </Border>
+                            </Grid>
+                        </Border>
+
+                        <TextBlock Grid.Row="1" Text="{x:Bind FileName}"
+                                   FontSize="11" Opacity="0.7"
+                                   TextTrimming="CharacterEllipsis"
+                                   Margin="2,3,2,0"/>
+                    </Grid>
+                </DataTemplate>
+            </GridView.ItemTemplate>
+            <GridView.ItemContainerStyle>
+                <Style TargetType="GridViewItem">
+                    <Setter Property="Padding" Value="0"/>
+                    <Setter Property="Margin"  Value="0"/>
+                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                </Style>
+            </GridView.ItemContainerStyle>
+        </GridView>
+
+        <!-- Empty state -->
+        <StackPanel Grid.Row="1"
+                    x:Name="EmptyState"
+                    VerticalAlignment="Center" HorizontalAlignment="Center"
+                    Spacing="12" Visibility="Collapsed">
+            <FontIcon x:Name="EmptyIcon" FontSize="56" Opacity="0.2"/>
+            <TextBlock x:Name="EmptyText" FontSize="16" Opacity="0.4"
+                       HorizontalAlignment="Center"/>
+        </StackPanel>
+
+        <!-- Status bar -->
+        <Border Grid.Row="2" Padding="14,8"
+                BorderThickness="0,1,0,0"
+                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                Background="{ThemeResource LayerFillColorDefaultBrush}">
+            <TextBlock x:Name="StatusBar" FontSize="12" Opacity="0.6"/>
+        </Border>
+    </Grid>
+</Page>

@@ -1,0 +1,45 @@
+<UserControl
+    x:Class="PhotoCuller.App.WinUI.Views.NavCountButton"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Button x:Name="Root"
+            HorizontalAlignment="Stretch"
+            HorizontalContentAlignment="Stretch"
+            Padding="8,7"
+            Style="{StaticResource SubtleButtonStyle}"
+            Click="Root_Click">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="22"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Icon -->
+            <FontIcon x:Name="IconEl"
+                      Grid.Column="0"
+                      FontSize="14"
+                      VerticalAlignment="Center"
+                      Opacity="0.8"/>
+
+            <!-- Label -->
+            <TextBlock x:Name="LabelEl"
+                       Grid.Column="1"
+                       FontSize="13"
+                       VerticalAlignment="Center"
+                       Margin="6,0,0,0"
+                       TextTrimming="CharacterEllipsis"/>
+
+            <!-- Count badge -->
+            <TextBlock x:Name="CountEl"
+                       Grid.Column="2"
+                       FontSize="12"
+                       Opacity="0.5"
+                       VerticalAlignment="Center"
+                       HorizontalAlignment="Right"
+                       Margin="4,0,0,0"
+                       Visibility="Collapsed"/>
+        </Grid>
+    </Button>
+</UserControl>
