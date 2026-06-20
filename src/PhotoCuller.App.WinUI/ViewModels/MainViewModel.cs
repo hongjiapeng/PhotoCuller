@@ -90,9 +90,25 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasSelectedPhoto))]
     private PhotoItemViewModel? _selectedPhoto;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsBrowseMode))]
+    [NotifyPropertyChangedFor(nameof(IsCompareMode))]
+    [NotifyPropertyChangedFor(nameof(IsInspectMode))]
+    private SimilarGroupViewMode _currentViewMode = SimilarGroupViewMode.Browse;
+
+    [ObservableProperty] private PhotoGroupViewModel? _selectedGroup;
+    [ObservableProperty] private PhotoItemViewModel? _recommendedPhoto;
+    [ObservableProperty] private PhotoItemViewModel? _comparePhoto;
+    [ObservableProperty] private PhotoItemViewModel? _inspectPhoto;
+    [ObservableProperty] private double _zoomLevel = 1.0;
+    [ObservableProperty] private bool _isFitToWindow = true;
 #pragma warning restore MVVMTK0045
 
     public bool HasSelectedPhoto => SelectedPhoto is not null;
+    public bool IsBrowseMode => CurrentViewMode == SimilarGroupViewMode.Browse;
+    public bool IsCompareMode => CurrentViewMode == SimilarGroupViewMode.Compare;
+    public bool IsInspectMode => CurrentViewMode == SimilarGroupViewMode.Inspect;
 
     public string ScanToggleButtonContent =>
         IsScanning ? "■  停止扫描" : "▶  开始扫描";
@@ -110,6 +126,11 @@ public sealed partial class MainViewModel : ObservableObject
 
     public ObservableCollection<PhotoGroupViewModel> Groups    { get; } = [];
     public ObservableCollection<PhotoItemViewModel>  AllPhotos { get; } = [];
+
+    public string CompareHeader =>
+        SelectedGroup is null
+            ? "请选择一个相似照片组"
+            : $"相似照片组 > 组 {Groups.IndexOf(SelectedGroup) + 1} / {Groups.Count} > {RecommendedPhoto?.FileName ?? "—"}";
 
     // ── Filtered views (computed from AllPhotos) ──────────────────────────────
 
@@ -162,6 +183,316 @@ public sealed partial class MainViewModel : ObservableObject
         if (vm is null) return;
         vm.SetStatus(RecommendationStatus.Review);
         RefreshCounts();
+    }
+
+    [RelayCommand]
+    public void EnterBrowseMode()
+    {
+        CurrentViewMode = SimilarGroupViewMode.Browse;
+    }
+
+    [RelayCommand]
+    public void EnterCompareMode()
+    {
+        EnsureSelectedGroup();
+        if (SelectedGroup is null) return;
+
+        EnsureRecommendedAndCandidate();
+        CurrentViewMode = SimilarGroupViewMode.Compare;
+        IsFitToWindow = true;
+        ZoomLevel = 1.0;
+        SelectedPhoto = ComparePhoto ?? RecommendedPhoto;
+    }
+
+    [RelayCommand]
+    public void EnterInspectMode()
+    {
+        EnsureSelectedGroup();
+        if (SelectedGroup is null) return;
+
+        EnsureRecommendedAndCandidate();
+        InspectPhoto ??= ComparePhoto ?? RecommendedPhoto;
+        SelectedPhoto = InspectPhoto;
+        CurrentViewMode = SimilarGroupViewMode.Inspect;
+    }
+
+    [RelayCommand]
+    public void SelectGroup(PhotoGroupViewModel? group)
+    {
+        if (group is null) return;
+
+        SelectedGroup = group;
+        EnsureRecommendedAndCandidate();
+        SelectedPhoto = ComparePhoto ?? RecommendedPhoto;
+    }
+
+    [RelayCommand]
+    public void SelectComparePhoto(PhotoItemViewModel? photo)
+    {
+        if (photo is null) return;
+
+        var group = FindGroupForPhoto(photo);
+        if (group is not null && group != SelectedGroup)
+            SelectedGroup = group;
+
+        EnsureRecommendedAndCandidate();
+
+        ComparePhoto = photo == RecommendedPhoto
+            ? GetNextPhotoInGroup(RecommendedPhoto, skipRecommended: true)
+            : photo;
+
+        InspectPhoto = ComparePhoto;
+        SelectedPhoto = ComparePhoto;
+        UpdatePhotoSelectionFlags();
+    }
+
+    [RelayCommand]
+    public async Task SetAsKeepAsync(CancellationToken ct = default)
+    {
+        if (SelectedGroup is null || ComparePhoto is null) return;
+
+        var previousRecommended = RecommendedPhoto;
+        if (previousRecommended == ComparePhoto)
+        {
+            ComparePhoto.SetStatus(RecommendationStatus.ManualKeep);
+            RefreshCounts();
+            return;
+        }
+
+        previousRecommended?.SetStatus(RecommendationStatus.Review);
+        ComparePhoto.SetStatus(RecommendationStatus.ManualKeep);
+        SelectedGroup.SetRecommendedPhoto(ComparePhoto);
+        RecommendedPhoto = ComparePhoto;
+
+        try
+        {
+            await _groupRepo.UpdateAsync(SelectedGroup.Model, ct);
+            await _photoRepo.UpdateAsync(ComparePhoto.Model, ct);
+            if (previousRecommended is not null)
+                await _photoRepo.UpdateAsync(previousRecommended.Model, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to persist recommended photo change for group {GroupId}",
+                SelectedGroup.Id);
+        }
+
+        ComparePhoto = previousRecommended
+            ?? GetNextPhotoInGroup(RecommendedPhoto, skipRecommended: true)
+            ?? RecommendedPhoto;
+        InspectPhoto = ComparePhoto;
+        SelectedPhoto = ComparePhoto;
+        RefreshCounts();
+        UpdatePhotoSelectionFlags();
+        OnPropertyChanged(nameof(CompareHeader));
+    }
+
+    [RelayCommand]
+    public void MarkAsKeep()
+    {
+        var photo = CurrentActionPhoto();
+        if (photo is null) return;
+
+        MarkKeep(photo);
+        if (SelectedGroup?.Photos.Contains(photo) == true)
+            SelectedGroup.SetRecommendedPhoto(photo);
+
+        RecommendedPhoto = SelectedGroup?.RecommendedPhoto;
+        UpdatePhotoSelectionFlags();
+    }
+
+    [RelayCommand]
+    public void MarkAsDelete()
+    {
+        var photo = CurrentActionPhoto();
+        if (photo is null) return;
+
+        MarkDelete(photo);
+        UpdatePhotoSelectionFlags();
+    }
+
+    [RelayCommand]
+    public void ToggleZoom()
+    {
+        if (IsFitToWindow)
+            SetActualSize();
+        else
+            SetFitToWindow();
+    }
+
+    [RelayCommand]
+    public void SetFitToWindow()
+    {
+        IsFitToWindow = true;
+        ZoomLevel = 1.0;
+    }
+
+    [RelayCommand]
+    public void SetActualSize()
+    {
+        IsFitToWindow = false;
+        ZoomLevel = 1.0;
+    }
+
+    [RelayCommand]
+    public void ZoomIn()
+    {
+        IsFitToWindow = false;
+        ZoomLevel = Math.Min(4.0, Math.Round(ZoomLevel + 0.25, 2));
+    }
+
+    [RelayCommand]
+    public void ZoomOut()
+    {
+        IsFitToWindow = false;
+        ZoomLevel = Math.Max(0.25, Math.Round(ZoomLevel - 0.25, 2));
+    }
+
+    [RelayCommand]
+    public void NextPhoto()
+    {
+        EnsureSelectedGroup();
+        if (SelectedGroup is null) return;
+
+        if (IsInspectMode)
+        {
+            InspectPhoto = GetNextPhotoInGroup(InspectPhoto, skipRecommended: false);
+            SelectedPhoto = InspectPhoto;
+        }
+        else
+        {
+            ComparePhoto = GetNextPhotoInGroup(ComparePhoto ?? RecommendedPhoto, skipRecommended: true);
+            InspectPhoto = ComparePhoto;
+            SelectedPhoto = ComparePhoto;
+        }
+
+        UpdatePhotoSelectionFlags();
+    }
+
+    [RelayCommand]
+    public void PreviousPhoto()
+    {
+        EnsureSelectedGroup();
+        if (SelectedGroup is null) return;
+
+        if (IsInspectMode)
+        {
+            InspectPhoto = GetPreviousPhotoInGroup(InspectPhoto, skipRecommended: false);
+            SelectedPhoto = InspectPhoto;
+        }
+        else
+        {
+            ComparePhoto = GetPreviousPhotoInGroup(ComparePhoto ?? RecommendedPhoto, skipRecommended: true);
+            InspectPhoto = ComparePhoto;
+            SelectedPhoto = ComparePhoto;
+        }
+
+        UpdatePhotoSelectionFlags();
+    }
+
+    private void EnsureSelectedGroup()
+    {
+        if (SelectedGroup is not null) return;
+
+        SelectedGroup = SelectedPhoto is not null
+            ? FindGroupForPhoto(SelectedPhoto)
+            : Groups.FirstOrDefault();
+    }
+
+    private void EnsureRecommendedAndCandidate()
+    {
+        RecommendedPhoto = SelectedGroup?.RecommendedPhoto;
+        ComparePhoto = ComparePhoto is not null && SelectedGroup?.Photos.Contains(ComparePhoto) == true
+            ? ComparePhoto
+            : GetNextPhotoInGroup(RecommendedPhoto, skipRecommended: true) ?? RecommendedPhoto;
+        InspectPhoto = InspectPhoto is not null && SelectedGroup?.Photos.Contains(InspectPhoto) == true
+            ? InspectPhoto
+            : ComparePhoto ?? RecommendedPhoto;
+        UpdatePhotoSelectionFlags();
+        OnPropertyChanged(nameof(CompareHeader));
+    }
+
+    private PhotoGroupViewModel? FindGroupForPhoto(PhotoItemViewModel photo)
+        => Groups.FirstOrDefault(g => g.Photos.Any(p => p.Id == photo.Id));
+
+    private PhotoItemViewModel? GetNextPhotoInGroup(
+        PhotoItemViewModel? current, bool skipRecommended)
+        => GetAdjacentPhotoInGroup(current, skipRecommended, 1);
+
+    private PhotoItemViewModel? GetPreviousPhotoInGroup(
+        PhotoItemViewModel? current, bool skipRecommended)
+        => GetAdjacentPhotoInGroup(current, skipRecommended, -1);
+
+    private PhotoItemViewModel? GetAdjacentPhotoInGroup(
+        PhotoItemViewModel? current, bool skipRecommended, int direction)
+    {
+        if (SelectedGroup is null || SelectedGroup.Photos.Count == 0)
+            return null;
+
+        var photos = SelectedGroup.Photos.ToList();
+        var startIndex = current is null
+            ? -1
+            : Math.Max(0, photos.FindIndex(p => p.Id == current.Id));
+
+        for (var offset = 1; offset <= photos.Count; offset++)
+        {
+            var index = (startIndex + direction * offset + photos.Count) % photos.Count;
+            var candidate = photos[index];
+            if (!skipRecommended || candidate != RecommendedPhoto)
+                return candidate;
+        }
+
+        return RecommendedPhoto;
+    }
+
+    private PhotoItemViewModel? CurrentActionPhoto()
+        => CurrentViewMode switch
+        {
+            SimilarGroupViewMode.Inspect => InspectPhoto ?? SelectedPhoto,
+            SimilarGroupViewMode.Compare => ComparePhoto ?? SelectedPhoto,
+            _                            => SelectedPhoto,
+        };
+
+    private void UpdatePhotoSelectionFlags()
+    {
+        foreach (var photo in AllPhotos)
+        {
+            photo.IsRecommendedInSelectedGroup =
+                SelectedGroup is not null && photo.Id == SelectedGroup.Model.RecommendedPhotoId;
+            photo.IsCurrentComparePhoto = ComparePhoto is not null && photo.Id == ComparePhoto.Id;
+            photo.IsCurrentInspectPhoto = InspectPhoto is not null && photo.Id == InspectPhoto.Id;
+        }
+    }
+
+    partial void OnCurrentViewModeChanged(SimilarGroupViewMode value)
+    {
+        OnPropertyChanged(nameof(IsBrowseMode));
+        OnPropertyChanged(nameof(IsCompareMode));
+        OnPropertyChanged(nameof(IsInspectMode));
+    }
+
+    partial void OnSelectedGroupChanged(PhotoGroupViewModel? value)
+    {
+        ComparePhoto = null;
+        InspectPhoto = null;
+        EnsureRecommendedAndCandidate();
+    }
+
+    partial void OnRecommendedPhotoChanged(PhotoItemViewModel? value)
+        => UpdatePhotoSelectionFlags();
+
+    partial void OnComparePhotoChanged(PhotoItemViewModel? value)
+    {
+        if (!IsInspectMode)
+            SelectedPhoto = value ?? RecommendedPhoto;
+        UpdatePhotoSelectionFlags();
+    }
+
+    partial void OnInspectPhotoChanged(PhotoItemViewModel? value)
+    {
+        if (IsInspectMode)
+            SelectedPhoto = value ?? ComparePhoto ?? RecommendedPhoto;
+        UpdatePhotoSelectionFlags();
     }
 
     // ── Commands ─────────────────────────────────────────────────────────────

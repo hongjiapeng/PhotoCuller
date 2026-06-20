@@ -39,6 +39,20 @@ public sealed partial class PhotoGroupViewModel : ObservableObject
 
     public ObservableCollection<PhotoItemViewModel> Photos { get; }
 
+    public PhotoItemViewModel? RecommendedPhoto =>
+        Photos.FirstOrDefault(p => p.Id == Model.RecommendedPhotoId)
+        ?? Photos.OrderByDescending(p => p.OverallScore ?? 0).FirstOrDefault();
+
+    public void SetRecommendedPhoto(PhotoItemViewModel photo)
+    {
+        if (!Photos.Contains(photo))
+            return;
+
+        Model.RecommendedPhotoId = photo.Id;
+        OnPropertyChanged(nameof(RecommendedFileName));
+        OnPropertyChanged(nameof(RecommendedPhoto));
+    }
+
 #pragma warning disable MVVMTK0045
     [ObservableProperty] private bool _isExpanded = true;
 #pragma warning restore MVVMTK0045

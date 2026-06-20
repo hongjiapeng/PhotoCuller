@@ -15,6 +15,10 @@ public sealed partial class PhotoItemViewModel : ObservableObject
     public string FileName       => Model.FileName;
     public string FilePath       => Model.FilePath;
     public long   FileSize       => Model.FileSize;
+    public string FileSizeLabel  => FormatSize(Model.FileSize);
+    public string FileType       => Path.GetExtension(Model.FilePath).TrimStart('.').ToUpperInvariant() is { Length: > 0 } ext
+        ? ext
+        : "—";
     public int    Width          => Model.Width;
     public int    Height         => Model.Height;
     public string Resolution     => Width > 0 && Height > 0 ? $"{Width} × {Height}" : "—";
@@ -61,4 +65,18 @@ public sealed partial class PhotoItemViewModel : ObservableObject
         Model.OverallScore.HasValue
         ? ((int)Math.Round(Model.OverallScore.Value)).ToString()
         : "—";
+
+#pragma warning disable MVVMTK0045
+    [ObservableProperty] private bool _isRecommendedInSelectedGroup;
+    [ObservableProperty] private bool _isCurrentComparePhoto;
+    [ObservableProperty] private bool _isCurrentInspectPhoto;
+#pragma warning restore MVVMTK0045
+
+    private static string FormatSize(long bytes) => bytes switch
+    {
+        >= 1_073_741_824 => $"{bytes / 1_073_741_824.0:F2} GB",
+        >= 1_048_576     => $"{bytes / 1_048_576.0:F2} MB",
+        >= 1_024         => $"{bytes / 1_024.0:F0} KB",
+        _                => $"{bytes} B",
+    };
 }

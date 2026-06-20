@@ -14,16 +14,17 @@
         <conv:PathToImageConverter      x:Key="PathToImage"/>
     </Page.Resources>
 
-    <Grid>
+    <Grid x:Name="Root" KeyDown="Root_KeyDown" IsTabStop="True">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- ── TOOLBAR ──────────────────────────── -->
-        <Grid Grid.Row="0" Padding="14,10,14,8" ColumnSpacing="8">
+        <!-- TOOLBAR -->
+        <Grid Grid.Row="0" Padding="14,10,14,8" ColumnSpacing="10">
             <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
@@ -34,10 +35,25 @@
                        Text="相似照片组" VerticalAlignment="Center"/>
 
             <TextBlock Grid.Column="1" x:Name="GroupCountLabel"
-                       FontSize="12" Opacity="0.5" Margin="8,0,0,0"
+                       FontSize="12" Opacity="0.5" Margin="2,0,8,0"
                        VerticalAlignment="Center"/>
 
-            <AutoSuggestBox Grid.Column="2"
+            <SelectorBar Grid.Column="2"
+                         x:Name="ModeSelector"
+                         AutomationProperties.AutomationId="SimilarGroupModeSelector"
+                         SelectionChanged="ModeSelector_SelectionChanged">
+                <SelectorBarItem x:Name="BrowseModeItem"
+                                 AutomationProperties.AutomationId="BrowseModeItem"
+                                 Text="浏览"/>
+                <SelectorBarItem x:Name="CompareModeItem"
+                                 AutomationProperties.AutomationId="CompareModeItem"
+                                 Text="对比"/>
+                <SelectorBarItem x:Name="InspectModeItem"
+                                 AutomationProperties.AutomationId="InspectModeItem"
+                                 Text="精检"/>
+            </SelectorBar>
+
+            <AutoSuggestBox Grid.Column="3"
                             x:Name="SearchBox"
                             PlaceholderText="搜索文件名、路径..."
                             QueryIcon="Find"
@@ -45,18 +61,14 @@
                             TextChanged="SearchBox_TextChanged"/>
         </Grid>
 
-        <!-- ── GROUPS LIST (virtualized ListView) ────────────────────────────
-             ListView + VirtualizingStackPanel renders only visible rows.
-             Each group row height is bounded (~180px) so the virtualizer can
-             accurately predict and recycle off-screen containers.
-        ──────────────────────────────────────────────────────────────────── -->
+        <!-- BROWSE MODE -->
         <ListView Grid.Row="1"
                   x:Name="GroupsList"
                   Padding="10,0,10,10"
                   SelectionMode="None"
-                  IsItemClickEnabled="False">
+                  IsItemClickEnabled="False"
+                  Visibility="{Binding IsBrowseMode, Converter={StaticResource BoolToVis}}">
 
-            <!-- Remove the default highlight/selection chrome -->
             <ListView.ItemContainerStyle>
                 <Style TargetType="ListViewItem">
                     <Setter Property="Padding"                   Value="0"/>
@@ -75,24 +87,22 @@
 
             <ListView.ItemTemplate>
                 <DataTemplate x:DataType="vm:PhotoGroupViewModel">
-
-                    <!-- Group card -->
                     <Border CornerRadius="8"
                             Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                             BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                            BorderThickness="1">
+                            BorderThickness="1"
+                            DoubleTapped="Group_DoubleTapped"
+                            Tag="{x:Bind Id}">
                         <StackPanel>
-
-                            <!-- Group header -->
                             <Grid Padding="12,9,8,9">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
 
-                                <!-- Type badge -->
                                 <Border Grid.Column="0"
                                         CornerRadius="4" Padding="6,2"
                                         Background="{ThemeResource AccentAAFillColorDefaultBrush}"
@@ -101,7 +111,6 @@
                                                FontSize="11" Foreground="White"/>
                                 </Border>
 
-                                <!-- Name + recommended -->
                                 <StackPanel Grid.Column="1"
                                             Orientation="Horizontal" Spacing="8"
                                             VerticalAlignment="Center">
@@ -110,27 +119,30 @@
                                     <TextBlock FontSize="11" Opacity="0.5"
                                                VerticalAlignment="Center">
                                         <Run Text="推荐保留: "/>
-                                        <Run Text="{x:Bind RecommendedFileName}"
+                                        <Run Text="{x:Bind RecommendedFileName, Mode=OneWay}"
                                              FontWeight="SemiBold" Foreground="#22C55E"/>
                                     </TextBlock>
                                 </StackPanel>
 
-                                <!-- Move others -->
                                 <Button Grid.Column="2"
+                                        Content="对比" FontSize="11"
+                                        Padding="8,3" Margin="0,0,6,0"
+                                        Click="CompareGroup_Click"
+                                        Tag="{x:Bind Id}"/>
+
+                                <Button Grid.Column="3"
                                         Content="移除其余" FontSize="11"
                                         Padding="8,3" Margin="0,0,6,0"
                                         Click="MoveOthers_Click"
                                         Tag="{x:Bind Id}"/>
 
-                                <!-- Expand/collapse -->
-                                <ToggleButton Grid.Column="3"
+                                <ToggleButton Grid.Column="4"
                                               IsChecked="{x:Bind IsExpanded, Mode=TwoWay}"
                                               Padding="6,3" FontSize="11">
                                     <FontIcon Glyph="&#xE70D;" FontSize="11"/>
                                 </ToggleButton>
                             </Grid>
 
-                            <!-- Photos horizontal strip (collapsed when IsExpanded=false) -->
                             <ScrollViewer
                                 HorizontalScrollBarVisibility="Auto"
                                 VerticalScrollBarVisibility="Disabled"
@@ -138,11 +150,6 @@
                                 MaxHeight="160"
                                 Visibility="{x:Bind IsExpanded,
                                     Converter={StaticResource BoolToVis}, Mode=OneWay}">
-                                <!--
-                                    Use ItemsRepeater with a horizontal StackLayout for
-                                    the photo strip. ItemsRepeater is lighter than ItemsControl
-                                    and doesn't add extra selection chrome.
-                                -->
                                 <ItemsRepeater ItemsSource="{x:Bind Photos}">
                                     <ItemsRepeater.Layout>
                                         <StackLayout Orientation="Horizontal" Spacing="6"/>
@@ -154,7 +161,6 @@
                                                     Click="PhotoCard_Click"
                                                     Tag="{x:Bind Id}">
                                                 <Grid>
-                                                    <!-- Thumbnail -->
                                                     <Border Height="120" CornerRadius="6"
                                                             Background="#1E1E1E">
                                                         <Image
@@ -163,14 +169,12 @@
                                                             Stretch="UniformToFill"/>
                                                     </Border>
 
-                                                    <!-- Keep green border -->
                                                     <Border CornerRadius="6"
                                                             BorderThickness="2"
                                                             BorderBrush="#22C55E"
                                                             Visibility="{x:Bind IsKeep,
                                                                 Converter={StaticResource BoolToVis}}"/>
 
-                                                    <!-- Bottom score/status overlay -->
                                                     <Border VerticalAlignment="Bottom"
                                                             CornerRadius="0,0,6,6"
                                                             Background="#AA000000"
@@ -205,15 +209,301 @@
                                     </ItemsRepeater.ItemTemplate>
                                 </ItemsRepeater>
                             </ScrollViewer>
-
                         </StackPanel>
                     </Border>
-
                 </DataTemplate>
             </ListView.ItemTemplate>
         </ListView>
 
-        <!-- ── STATUS BAR ────────────────────────── -->
+        <!-- COMPARE MODE -->
+        <Grid Grid.Row="1"
+              Padding="14,0,14,10"
+              RowSpacing="10"
+              Visibility="{Binding IsCompareMode, Converter={StaticResource BoolToVis}}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <Grid Grid.Row="0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{Binding CompareHeader}"
+                           FontSize="13"
+                           Opacity="0.75"
+                           VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis"/>
+                <Button Grid.Column="1"
+                        Content="设为保留"
+                        Style="{StaticResource AccentButtonStyle}"
+                        Padding="12,5"
+                        Command="{Binding SetAsKeepCommand}"/>
+            </Grid>
+
+            <Grid Grid.Row="1" ColumnSpacing="10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <Grid Grid.Column="0" RowSpacing="6">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <Border Grid.Row="0"
+                            HorizontalAlignment="Left"
+                            CornerRadius="4"
+                            Padding="7,3"
+                            Background="#22C55E">
+                        <TextBlock Text="推荐保留"
+                                   Foreground="White"
+                                   FontSize="12"
+                                   FontWeight="SemiBold"/>
+                    </Border>
+                    <Border Grid.Row="1"
+                            CornerRadius="8"
+                            BorderThickness="2"
+                            BorderBrush="#22C55E"
+                            Background="#111111">
+                        <ScrollViewer x:Name="RecommendedScrollViewer"
+                                      HorizontalScrollBarVisibility="Auto"
+                                      VerticalScrollBarVisibility="Auto"
+                                      HorizontalScrollMode="Enabled"
+                                      VerticalScrollMode="Enabled">
+                            <Grid>
+                                <Image x:Name="RecommendedImage"
+                                       Stretch="Uniform"
+                                       Tapped="LargePhoto_Tapped"/>
+                                <TextBlock x:Name="RecommendedImagePlaceholder"
+                                           Text="无法加载图片"
+                                           Visibility="Collapsed"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           Opacity="0.55"/>
+                            </Grid>
+                        </ScrollViewer>
+                    </Border>
+                    <StackPanel Grid.Row="2" Spacing="2">
+                        <TextBlock Text="{Binding RecommendedPhoto.FileName}"
+                                   FontWeight="SemiBold"
+                                   TextTrimming="CharacterEllipsis"/>
+                        <TextBlock FontSize="12" Opacity="0.65">
+                            <Run Text="{Binding RecommendedPhoto.FileType}"/>
+                            <Run Text=" · "/>
+                            <Run Text="{Binding RecommendedPhoto.FileSizeLabel}"/>
+                            <Run Text=" · "/>
+                            <Run Text="{Binding RecommendedPhoto.Resolution}"/>
+                            <Run Text=" · 评分 "/>
+                            <Run Text="{Binding RecommendedPhoto.ScoreLabel}"/>
+                        </TextBlock>
+                    </StackPanel>
+                </Grid>
+
+                <Grid Grid.Column="1" RowSpacing="6">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <Border Grid.Row="0"
+                            HorizontalAlignment="Left"
+                            CornerRadius="4"
+                            Padding="7,3"
+                            Background="#D9A400">
+                        <TextBlock Text="当前对比"
+                                   Foreground="White"
+                                   FontSize="12"
+                                   FontWeight="SemiBold"/>
+                    </Border>
+                    <Border Grid.Row="1"
+                            CornerRadius="8"
+                            BorderThickness="1"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            Background="#111111">
+                        <ScrollViewer x:Name="CompareScrollViewer"
+                                      HorizontalScrollBarVisibility="Auto"
+                                      VerticalScrollBarVisibility="Auto"
+                                      HorizontalScrollMode="Enabled"
+                                      VerticalScrollMode="Enabled">
+                            <Grid>
+                                <Image x:Name="CompareImage"
+                                       Stretch="Uniform"
+                                       Tapped="LargePhoto_Tapped"/>
+                                <TextBlock x:Name="CompareImagePlaceholder"
+                                           Text="无法加载图片"
+                                           Visibility="Collapsed"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           Opacity="0.55"/>
+                            </Grid>
+                        </ScrollViewer>
+                    </Border>
+                    <StackPanel Grid.Row="2" Spacing="2">
+                        <TextBlock Text="{Binding ComparePhoto.FileName}"
+                                   FontWeight="SemiBold"
+                                   TextTrimming="CharacterEllipsis"/>
+                        <TextBlock FontSize="12" Opacity="0.65">
+                            <Run Text="{Binding ComparePhoto.FileType}"/>
+                            <Run Text=" · "/>
+                            <Run Text="{Binding ComparePhoto.FileSizeLabel}"/>
+                            <Run Text=" · "/>
+                            <Run Text="{Binding ComparePhoto.Resolution}"/>
+                            <Run Text=" · 评分 "/>
+                            <Run Text="{Binding ComparePhoto.ScoreLabel}"/>
+                        </TextBlock>
+                    </StackPanel>
+                </Grid>
+            </Grid>
+
+            <CommandBar Grid.Row="2"
+                        HorizontalAlignment="Center"
+                        DefaultLabelPosition="Right"
+                        Background="Transparent"
+                        IsOpen="False">
+                <AppBarButton Label="适应窗口" Command="{Binding SetFitToWindowCommand}"/>
+                <AppBarButton Label="100%" Command="{Binding SetActualSizeCommand}"/>
+                <AppBarButton Label="1:1" Click="ActualSizeInspect_Click"/>
+                <AppBarButton Label="放大" Command="{Binding ZoomInCommand}"/>
+                <AppBarButton Label="缩小" Command="{Binding ZoomOutCommand}"/>
+            </CommandBar>
+
+            <ScrollViewer Grid.Row="3"
+                          HorizontalScrollBarVisibility="Auto"
+                          VerticalScrollBarVisibility="Disabled"
+                          MaxHeight="116">
+                <ItemsControl ItemsSource="{Binding SelectedGroup.Photos}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal" Spacing="8"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:PhotoItemViewModel">
+                            <Button Padding="0"
+                                    Width="118"
+                                    Click="FilmstripPhoto_Click"
+                                    Tag="{x:Bind Id}">
+                                <Grid>
+                                    <Border Height="88"
+                                            CornerRadius="6"
+                                            Background="#1E1E1E">
+                                        <Image Source="{x:Bind ThumbnailPath, Converter={StaticResource PathToImage}}"
+                                               Stretch="UniformToFill"/>
+                                    </Border>
+                                    <Border CornerRadius="6"
+                                            BorderThickness="3"
+                                            BorderBrush="#22C55E"
+                                            Visibility="{x:Bind IsRecommendedInSelectedGroup,
+                                                Converter={StaticResource BoolToVis}}"/>
+                                    <Border CornerRadius="6"
+                                            BorderThickness="3"
+                                            BorderBrush="{ThemeResource AccentAAFillColorDefaultBrush}"
+                                            Visibility="{x:Bind IsCurrentComparePhoto,
+                                                Converter={StaticResource BoolToVis}}"/>
+                                    <Border VerticalAlignment="Bottom"
+                                            CornerRadius="0,0,6,6"
+                                            Background="#B0000000"
+                                            Padding="5,3">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0"
+                                                       Text="{x:Bind FileName}"
+                                                       FontSize="10"
+                                                       Foreground="White"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Grid.Column="1"
+                                                       Text="{x:Bind ScoreLabel}"
+                                                       FontSize="11"
+                                                       FontWeight="Bold"
+                                                       Foreground="White"
+                                                       Margin="4,0,0,0"/>
+                                        </Grid>
+                                    </Border>
+                                </Grid>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Grid>
+
+        <!-- INSPECT MODE -->
+        <Grid Grid.Row="1"
+              Padding="14,0,14,10"
+              RowSpacing="10"
+              Visibility="{Binding IsInspectMode, Converter={StaticResource BoolToVis}}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <Grid Grid.Row="0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{Binding InspectPhoto.FileName}"
+                           FontSize="14"
+                           FontWeight="SemiBold"
+                           VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis"/>
+                <TextBlock Grid.Column="1"
+                           FontSize="12"
+                           Opacity="0.65"
+                           VerticalAlignment="Center">
+                    <Run Text="{Binding InspectPhoto.Resolution}"/>
+                    <Run Text=" · 评分 "/>
+                    <Run Text="{Binding InspectPhoto.ScoreLabel}"/>
+                </TextBlock>
+            </Grid>
+
+            <Border Grid.Row="1"
+                    CornerRadius="8"
+                    Background="#101010"
+                    BorderThickness="1"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+                <ScrollViewer x:Name="InspectScrollViewer"
+                              HorizontalScrollBarVisibility="Auto"
+                              VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollMode="Enabled"
+                              VerticalScrollMode="Enabled">
+                    <Grid>
+                        <Image x:Name="InspectImage"
+                               Stretch="Uniform"/>
+                        <TextBlock x:Name="InspectImagePlaceholder"
+                                   Text="无法加载图片"
+                                   Visibility="Collapsed"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"
+                                   Opacity="0.55"/>
+                    </Grid>
+                </ScrollViewer>
+            </Border>
+
+            <CommandBar Grid.Row="2"
+                        HorizontalAlignment="Center"
+                        DefaultLabelPosition="Right"
+                        Background="Transparent"
+                        IsOpen="False">
+                <AppBarButton Label="适应窗口" Command="{Binding SetFitToWindowCommand}"/>
+                <AppBarButton Label="100%" Command="{Binding SetActualSizeCommand}"/>
+                <AppBarButton Label="1:1" Command="{Binding SetActualSizeCommand}"/>
+                <AppBarButton Label="放大" Command="{Binding ZoomInCommand}"/>
+                <AppBarButton Label="缩小" Command="{Binding ZoomOutCommand}"/>
+            </CommandBar>
+        </Grid>
+
+        <!-- STATUS BAR -->
         <Border Grid.Row="2" Padding="14,8"
                 BorderThickness="0,1,0,0"
                 BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"

@@ -133,6 +133,15 @@ public sealed partial class PhotoDetailPanel : UserControl
         vm?.MarkDeleteCommand.Execute(SelectedPhoto);
     }
 
+    private void BtnMarkReview_Click(object sender, RoutedEventArgs e)
+    {
+        if (SelectedPhoto is null) return;
+        var vm = App.Services.GetService(typeof(
+            PhotoCuller.App.WinUI.ViewModels.MainViewModel))
+            as PhotoCuller.App.WinUI.ViewModels.MainViewModel;
+        vm?.MarkReviewCommand.Execute(SelectedPhoto);
+    }
+
     private async void BtnAiReason_Click(object sender, RoutedEventArgs e)
     {
         if (SelectedPhoto is null) return;
