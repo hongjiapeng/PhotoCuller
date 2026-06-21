@@ -25,19 +25,54 @@ namespace PhotoCuller.Infrastructure.Hashing;
 /// </summary>
 public sealed class PerceptualHashService : IPerceptualHashService
 {
+    private const string PHashAlgorithm = "pHash";
+    private const string DHashAlgorithm = "dHash";
+    private static readonly PerceptualHashCache Cache = new();
+
     private readonly ILogger<PerceptualHashService> _logger;
 
     public PerceptualHashService(ILogger<PerceptualHashService> logger)
         => _logger = logger;
 
     public Task<ulong?> ComputePHashAsync(string filePath, CancellationToken ct = default)
-        => Task.Run(() => ComputePHash(filePath), ct);
+        => Task.Run(() => ComputeWithCache(filePath, PHashAlgorithm, ComputePHash), ct);
 
     public Task<ulong?> ComputeDHashAsync(string filePath, CancellationToken ct = default)
-        => Task.Run(() => ComputeDHash(filePath), ct);
+        => Task.Run(() => ComputeWithCache(filePath, DHashAlgorithm, ComputeDHash), ct);
 
     public int HammingDistance(ulong hashA, ulong hashB)
         => BitOperations.PopCount(hashA ^ hashB);
+
+    private ulong? ComputeWithCache(
+        string filePath,
+        string hashAlgorithm,
+        Func<string, ulong?> compute)
+    {
+        try
+        {
+            if (Cache.TryGet(filePath, hashAlgorithm, SimilarityThresholds.HashSize, out var cached))
+                return cached;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Hash cache lookup failed for {Path}", filePath);
+        }
+
+        var hash = compute(filePath);
+        if (!hash.HasValue)
+            return null;
+
+        try
+        {
+            Cache.Set(filePath, hashAlgorithm, SimilarityThresholds.HashSize, hash.Value);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Hash cache write failed for {Path}", filePath);
+        }
+
+        return hash;
+    }
 
     // ── pHash ────────────────────────────────────────────────────────────────
 

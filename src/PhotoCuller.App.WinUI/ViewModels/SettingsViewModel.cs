@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
+using PhotoCuller.Core.Enums;
 using PhotoCuller.Core.Interfaces.Platform;
 using PhotoCuller.Core.Interfaces.Storage;
 using PhotoCuller.Core.Models;
@@ -90,6 +91,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     // ── Similar ───────────────────────────────────────────────────────────────
     [ObservableProperty] private int  _similarityThresholdHigh     = 8;
     [ObservableProperty] private int  _similarityThresholdPossible = 15;
+    [ObservableProperty] private string _similarityPresetValue = SimilarityPreset.Normal.ToString();
     [ObservableProperty] private int  _burstTimeWindowSeconds       = 10;
     [ObservableProperty] private bool _useCaptureTimeForGrouping    = true;
 
@@ -152,6 +154,7 @@ public sealed partial class SettingsViewModel : ObservableObject
 
         SimilarityThresholdHigh     = _settings.SimilarityThresholdHigh;
         SimilarityThresholdPossible = _settings.SimilarityThresholdPossible;
+        SimilarityPresetValue       = _settings.SimilarityPreset.ToString();
         BurstTimeWindowSeconds      = _settings.BurstTimeWindowSeconds;
         UseCaptureTimeForGrouping   = _settings.UseCaptureTimeForGrouping;
 
@@ -203,6 +206,12 @@ public sealed partial class SettingsViewModel : ObservableObject
 
         _settings.SimilarityThresholdHigh     = SimilarityThresholdHigh;
         _settings.SimilarityThresholdPossible = SimilarityThresholdPossible;
+        _settings.SimilarityPreset = Enum.TryParse<SimilarityPreset>(
+            SimilarityPresetValue,
+            ignoreCase: true,
+            out var preset)
+            ? preset
+            : SimilarityPreset.Normal;
         _settings.BurstTimeWindowSeconds      = BurstTimeWindowSeconds;
         _settings.UseCaptureTimeForGrouping   = UseCaptureTimeForGrouping;
 

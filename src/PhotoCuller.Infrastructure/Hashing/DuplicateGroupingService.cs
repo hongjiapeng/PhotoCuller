@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using PhotoCuller.Core.Enums;
 using PhotoCuller.Core.Interfaces.Hashing;
+using PhotoCuller.Core.Interfaces.Storage;
 using PhotoCuller.Core.Models;
 using PhotoCuller.Infrastructure.Logging;
 
@@ -22,8 +22,8 @@ namespace PhotoCuller.Infrastructure.Hashing;
 ///     grouped as a Burst.
 ///
 ///   Pass 3 — Visually similar (pHash, Union-Find)
-///     All remaining ungrouped photos are compared pairwise.
-///     Union-Find merges any pair with Hamming distance ≤ SimilarityThresholdPossible.
+///     All remaining ungrouped photos are indexed in a BK-tree.
+///     Union-Find merges any BK-tree match within the SimilarityPreset threshold.
 ///     Groups with ≥ 2 members become Similar groups.
 ///
 /// After grouping, each group is assigned a recommended photo:
@@ -34,29 +34,34 @@ namespace PhotoCuller.Infrastructure.Hashing;
 public sealed class DuplicateGroupingService : IDuplicateGroupingService
 {
     private readonly IPerceptualHashService _pHash;
-    private readonly AppSettings _settings;
+    private readonly ISettingsRepository _settingsRepository;
     private readonly ILogger<DuplicateGroupingService> _logger;
 
     public DuplicateGroupingService(
         IPerceptualHashService pHash,
-        IOptions<AppSettings> settings,
+        ISettingsRepository settingsRepository,
         ILogger<DuplicateGroupingService> logger)
     {
         _pHash = pHash;
-        _settings = settings.Value;
+        _settingsRepository = settingsRepository;
         _logger = logger;
     }
 
     public Task<IReadOnlyList<PhotoGroup>> BuildGroupsAsync(
         IReadOnlyList<PhotoItem> photos,
         IProgress<string>? progress = null,
-        CancellationToken ct = default)
-        => Task.Run(() => BuildGroups(photos, progress, ct), ct);
+        CancellationToken ct = default) =>
+        Task.Run(async () =>
+        {
+            var settings = await _settingsRepository.LoadAsync(ct);
+            return BuildGroups(photos, settings, progress, ct);
+        }, ct);
 
     // ── Core algorithm ───────────────────────────────────────────────────────
 
     private IReadOnlyList<PhotoGroup> BuildGroups(
         IReadOnlyList<PhotoItem> photos,
+        AppSettings settings,
         IProgress<string>? progress,
         CancellationToken ct)
     {
@@ -73,12 +78,12 @@ public sealed class DuplicateGroupingService : IDuplicateGroupingService
         // Pass 2: burst shots
         progress?.Report("Detecting burst shots...");
         ct.ThrowIfCancellationRequested();
-        groups.AddRange(BuildBurstGroups(photos, grouped, ct));
+        groups.AddRange(BuildBurstGroups(photos, grouped, settings, ct));
 
         // Pass 3: similar photos (Union-Find)
         progress?.Report("Detecting similar photos...");
         ct.ThrowIfCancellationRequested();
-        groups.AddRange(BuildSimilarGroups(photos, grouped, ct));
+        groups.AddRange(BuildSimilarGroups(photos, grouped, settings, ct));
 
         // Assign recommended photo to each group
         foreach (var group in groups)
@@ -134,13 +139,14 @@ public sealed class DuplicateGroupingService : IDuplicateGroupingService
     private IEnumerable<PhotoGroup> BuildBurstGroups(
         IReadOnlyList<PhotoItem> photos,
         HashSet<Guid> grouped,
+        AppSettings settings,
         CancellationToken ct)
     {
-        if (!_settings.UseCaptureTimeForGrouping)
+        if (!settings.UseCaptureTimeForGrouping)
             yield break;
 
-        var windowSec = _settings.BurstTimeWindowSeconds;
-        var threshold = _settings.SimilarityThresholdPossible;
+        var windowSec = settings.BurstTimeWindowSeconds;
+        var threshold = SimilarityThresholds.FromSettings(settings);
 
         // Only consider photos with capture time and pHash, not yet grouped
         var candidates = photos
@@ -213,6 +219,7 @@ public sealed class DuplicateGroupingService : IDuplicateGroupingService
     private IEnumerable<PhotoGroup> BuildSimilarGroups(
         IReadOnlyList<PhotoItem> photos,
         HashSet<Guid> grouped,
+        AppSettings settings,
         CancellationToken ct)
     {
         var candidates = photos
@@ -221,31 +228,36 @@ public sealed class DuplicateGroupingService : IDuplicateGroupingService
 
         Log.PHashCandidates(_logger, candidates.Count, photos.Count);
 
+        var threshold = SimilarityThresholds.FromSettings(settings);
         if (candidates.Count < 2)
+        {
+            Log.SimilarHashSearch(_logger,
+                candidates.Count,
+                queryCount: 0,
+                similarPairs: 0,
+                groupCount: 0,
+                threshold);
             yield break;
+        }
 
-        var threshold = _settings.SimilarityThresholdPossible;
         var uf = new UnionFind(candidates.Count);
+        var tree = new HammingBkTree(_pHash.HammingDistance);
 
-        int similarPairs = 0;
-        long totalPairs  = (long)candidates.Count * (candidates.Count - 1) / 2;
-
+        long similarPairs = 0;
+        int queryCount = 0;
         for (int i = 0; i < candidates.Count; i++)
         {
             ct.ThrowIfCancellationRequested();
-            for (int j = i + 1; j < candidates.Count; j++)
-            {
-                if (_pHash.HammingDistance(
-                    candidates[i].PerceptualHash!.Value,
-                    candidates[j].PerceptualHash!.Value) <= threshold)
-                {
-                    uf.Union(i, j);
-                    similarPairs++;
-                }
-            }
-        }
+            queryCount++;
 
-        Log.PHashComparisons(_logger, totalPairs, similarPairs, threshold);
+            foreach (var match in tree.Find(candidates[i].PerceptualHash!.Value, threshold))
+            {
+                uf.Union(i, match.Index);
+                similarPairs++;
+            }
+
+            tree.Add(candidates[i].PerceptualHash!.Value, i);
+        }
 
         // Collect groups with ≥ 2 members
         var clusters = new Dictionary<int, List<PhotoItem>>();
@@ -257,8 +269,18 @@ public sealed class DuplicateGroupingService : IDuplicateGroupingService
             clusters[root].Add(candidates[i]);
         }
 
-        int groupIndex = 0;
-        foreach (var cluster in clusters.Values.Where(c => c.Count >= 2))
+        var similarClusters = clusters.Values
+            .Where(c => c.Count >= 2)
+            .ToList();
+
+        Log.SimilarHashSearch(_logger,
+            candidates.Count,
+            queryCount,
+            similarPairs,
+            similarClusters.Count,
+            threshold);
+
+        foreach (var cluster in similarClusters)
         {
             var group = new PhotoGroup
             {
@@ -274,10 +296,6 @@ public sealed class DuplicateGroupingService : IDuplicateGroupingService
                 group.Photos.Add(photo);
                 grouped.Add(photo.Id);
             }
-
-            groupIndex++;
-            // RecommendedPhotoId is set later by AssignRecommendation
-            Log.SimilarGroupCreated(_logger, groupIndex, cluster.Count, null);
 
             yield return group;
         }

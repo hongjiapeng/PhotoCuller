@@ -94,6 +94,16 @@ internal static partial class Log
     internal static partial void PHashComparisons(ILogger logger, long pairs, int similar, int threshold);
 
     [LoggerMessage(Level = LogLevel.Information,
+        Message = "Similar hash search: {HashCount} hashes, {QueryCount} BK-tree queries, {SimilarPairs} similar pairs, {GroupCount} final groups (threshold ≤ {Threshold})")]
+    internal static partial void SimilarHashSearch(
+        ILogger logger,
+        int hashCount,
+        int queryCount,
+        long similarPairs,
+        int groupCount,
+        int threshold);
+
+    [LoggerMessage(Level = LogLevel.Information,
         Message = "Similar group #{Index}: {Count} photos, recommended={RecommendedId}")]
     internal static partial void SimilarGroupCreated(ILogger logger, int index, int count, Guid? recommendedId);
 }

@@ -4,8 +4,10 @@ using Microsoft.Extensions.Options;
 using NSubstitute;
 using PhotoCuller.Core.Enums;
 using PhotoCuller.Core.Interfaces.Hashing;
+using PhotoCuller.Core.Interfaces.Storage;
 using PhotoCuller.Core.Models;
 using PhotoCuller.Infrastructure.Hashing;
+using System.Numerics;
 
 namespace PhotoCuller.Tests.CoreTests;
 
@@ -21,17 +23,17 @@ public sealed class DuplicateGroupingServiceTests
         // Default: Hamming distance = 0 (identical hashes)
         _pHash.HammingDistance(Arg.Any<ulong>(), Arg.Any<ulong>()).Returns(0);
 
-        var opts = Options.Create(new AppSettings
+        var settings = new AppSettings
         {
             SimilarityThresholdHigh     = 8,
             SimilarityThresholdPossible = 15,
             BurstTimeWindowSeconds      = 10,
             UseCaptureTimeForGrouping   = true,
-        });
+        };
 
         _sut = new DuplicateGroupingService(
             _pHash,
-            opts,
+            new InMemorySettingsRepository(settings),
             NullLogger<DuplicateGroupingService>.Instance);
     }
 
@@ -186,5 +188,117 @@ public sealed class DuplicateGroupingServiceTests
 
         groups[0].RecommendedPhotoId
             .Should().Be(photos.First(p => p.FilePath == "manual.jpg").Id);
+    }
+
+    [Fact]
+    public async Task BuildGroups_LoosePreset_GroupsResizeOrCompressedVariant()
+    {
+        var sut = CreateService(SimilarityPreset.Loose, new CountingPHash());
+        var photos = new List<PhotoItem>
+        {
+            Photo("original.jpg",  0b0000_0000UL, score: 88f),
+            Photo("resized.jpg",   0b0111_1111UL, score: 82f), // distance 7
+        };
+
+        var groups = await sut.BuildGroupsAsync(photos);
+
+        groups.Should().ContainSingle();
+        groups[0].GroupType.Should().Be(GroupType.Similar);
+        groups[0].Photos.Select(p => p.FilePath).Should()
+            .BeEquivalentTo("original.jpg", "resized.jpg");
+        groups[0].RecommendedPhotoId.Should().Be(photos[0].Id);
+    }
+
+    [Fact]
+    public async Task BuildGroups_LoosePreset_DoesNotGroupBeyondLooseThreshold()
+    {
+        var sut = CreateService(SimilarityPreset.Loose, new CountingPHash());
+        var photos = new List<PhotoItem>
+        {
+            Photo("building.jpg",  0b0000_0000UL),
+            Photo("landscape.jpg", 0b0111_1111_1111_1111_1111UL), // distance 19
+        };
+
+        var groups = await sut.BuildGroupsAsync(photos);
+
+        groups.Should().BeEmpty();
+        photos.Should().OnlyContain(p => p.GroupId == null);
+    }
+
+    [Fact]
+    public async Task BuildGroups_NormalPreset_UsesBkTreeInsteadOfPairwiseScan()
+    {
+        var pHash = new CountingPHash();
+        var sut = CreateService(SimilarityPreset.Normal, pHash, possibleThreshold: 5);
+        var photos = Enumerable.Range(0, 1000)
+            .Select(i => Photo($"photo-{i}.jpg", (ulong)i << 16))
+            .ToList();
+
+        var groups = await sut.BuildGroupsAsync(photos);
+
+        groups.Should().NotBeEmpty();
+        pHash.DistanceCalls.Should().BeLessThan(1000L * 999 / 2);
+    }
+
+    private static DuplicateGroupingService CreateService(
+        SimilarityPreset preset,
+        IPerceptualHashService pHash,
+        int possibleThreshold = 15)
+    {
+        var settings = new AppSettings
+        {
+            SimilarityPreset = preset,
+            SimilarityThresholdHigh = 8,
+            SimilarityThresholdPossible = possibleThreshold,
+            BurstTimeWindowSeconds = 10,
+            UseCaptureTimeForGrouping = false,
+        };
+
+        return new DuplicateGroupingService(
+            pHash,
+            new InMemorySettingsRepository(settings),
+            NullLogger<DuplicateGroupingService>.Instance);
+    }
+
+    private static PhotoItem Photo(string path, ulong pHash, float score = 50f)
+        => new()
+        {
+            FilePath = path,
+            FileName = path,
+            PerceptualHash = pHash,
+            OverallScore = score,
+            Width = 4000,
+            Height = 3000,
+        };
+
+    private sealed class CountingPHash : IPerceptualHashService
+    {
+        public long DistanceCalls { get; private set; }
+
+        public Task<ulong?> ComputePHashAsync(string filePath, CancellationToken ct = default)
+            => Task.FromResult<ulong?>(null);
+
+        public Task<ulong?> ComputeDHashAsync(string filePath, CancellationToken ct = default)
+            => Task.FromResult<ulong?>(null);
+
+        public int HammingDistance(ulong hashA, ulong hashB)
+        {
+            DistanceCalls++;
+            return BitOperations.PopCount(hashA ^ hashB);
+        }
+    }
+
+    private sealed class InMemorySettingsRepository : ISettingsRepository
+    {
+        private readonly AppSettings _settings;
+
+        public InMemorySettingsRepository(AppSettings settings)
+            => _settings = settings;
+
+        public Task<AppSettings> LoadAsync(CancellationToken ct = default)
+            => Task.FromResult(_settings);
+
+        public Task SaveAsync(AppSettings settings, CancellationToken ct = default)
+            => Task.CompletedTask;
     }
 }

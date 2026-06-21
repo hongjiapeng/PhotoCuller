@@ -188,6 +188,18 @@
                 <StackPanel Spacing="10">
                     <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="180"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <StackPanel><TextBlock Style="{StaticResource RowLabel}" Text="相似度预设"/>
+                        <TextBlock Style="{StaticResource RowDesc}" Text="Strict 更保守，Loose 适合压缩或改尺寸版本"/></StackPanel>
+                        <ComboBox Grid.Column="1"
+                                  SelectedValue="{x:Bind ViewModel.SimilarityPresetValue, Mode=TwoWay}"
+                                  SelectedValuePath="Tag">
+                            <ComboBoxItem Content="Strict" Tag="Strict"/>
+                            <ComboBoxItem Content="Normal" Tag="Normal"/>
+                            <ComboBoxItem Content="Loose" Tag="Loose"/>
+                        </ComboBox>
+                    </Grid>
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="180"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                         <StackPanel><TextBlock Style="{StaticResource RowLabel}" Text="高度相似阈值"/>
                         <TextBlock Style="{StaticResource RowDesc}" Text="汉明距离 ≤ 此值视为高度相似"/></StackPanel>
                         <NumberBox Grid.Column="1" Minimum="1" Maximum="30" SpinButtonPlacementMode="Compact"

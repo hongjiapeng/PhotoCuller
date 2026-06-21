@@ -1,4 +1,5 @@
 using PhotoCuller.Core.Scoring;
+using PhotoCuller.Core.Enums;
 
 namespace PhotoCuller.Core.Models;
 
@@ -44,6 +45,9 @@ public class AppSettings
 
     /// <summary>pHash possible-similarity threshold (Hamming distance ≤ this value is considered possibly similar).</summary>
     public int SimilarityThresholdPossible { get; set; } = 15;
+
+    /// <summary>Preset used for similar-photo grouping. Normal is conservative for 64-bit pHash.</summary>
+    public SimilarityPreset SimilarityPreset { get; set; } = SimilarityPreset.Normal;
 
     /// <summary>Burst-shot time window in seconds.</summary>
     public int BurstTimeWindowSeconds { get; set; } = 10;
