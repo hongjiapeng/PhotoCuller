@@ -622,8 +622,22 @@ public sealed partial class MainViewModel : ObservableObject
 
             await foreach (var photo in _scanner.ScanAsync(SelectedDirectory, _scanCts.Token))
             {
+                var current = allPhotos.Count + 1;
+                var total = Math.Max(_scanProgressService.Current.Total, current);
+
+                ScanProgress = new Core.Models.ScanProgress(
+                    ScanPhase.GeneratingThumbnails, current, total,
+                    CurrentFile: photo.FileName,
+                    Message: $"正在生成缩略图 {current}/{total}");
+
                 photo.ThumbnailPath  = await _thumbnails
                     .GetOrCreateAsync(photo, cancellationToken: _scanCts.Token);
+
+                ScanProgress = new Core.Models.ScanProgress(
+                    ScanPhase.ComputingHashes, current, total,
+                    CurrentFile: photo.FileName,
+                    Message: $"正在计算哈希 {current}/{total}");
+
                 photo.Sha256Hash     = await _hash
                     .ComputeSha256Async(photo.FilePath, _scanCts.Token);
                 photo.PerceptualHash = await _pHash

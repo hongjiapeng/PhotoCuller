@@ -59,8 +59,13 @@ public sealed class PhotoScanner : IPhotoScanner
 
         // Use a Channel to bridge the try-catch boundary:
         // producer fills the channel, this method reads and yields.
-        var channel = Channel.CreateUnbounded<PhotoItem>(
-            new UnboundedChannelOptions { SingleReader = true, SingleWriter = true });
+        var channel = Channel.CreateBounded<PhotoItem>(
+            new BoundedChannelOptions(1)
+            {
+                FullMode = BoundedChannelFullMode.Wait,
+                SingleReader = true,
+                SingleWriter = true,
+            });
 
         var producerTask = ProduceAsync(directory, startedAt, channel.Writer, cancellationToken);
 

@@ -60,7 +60,9 @@ public sealed partial class LibraryPage : Page
         {
             ScanInfoBar.IsOpen = true;
             ScanBar.Value = p.Percent;
-            ScanStatusText.Text = p.CurrentFile is not null
+            ScanStatusText.Text = !string.IsNullOrEmpty(p.Message)
+                ? $"{p.Message}  {p.Percent}%"
+                : p.CurrentFile is not null
                 ? $"{p.Current}/{p.Total}  {p.CurrentFile}"
                 : $"{p.Phase}  {p.Percent}%";
         }
