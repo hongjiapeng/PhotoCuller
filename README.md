@@ -75,6 +75,26 @@ The current scoring is **100% algorithm-based** — no AI model is required for 
 - Last-used directory restored on next launch
 - Thumbnail cache management
 
+### 🧭 Similar-Photo Tuning Guide
+
+After changing values in **Settings → Similar Photo Settings**, click **Save Settings** and run a new scan. Existing groups are not updated retroactively.
+
+| Goal | Similarity Preset | High Threshold | Possible Threshold | Burst Time Window |
+|------|-------------------|----------------|--------------------|-------------------|
+| Conservative, fewer false groups | Strict or Normal | 6–8 | 12–13 | 10s |
+| Recommended default | Normal | 8 | 15 | 10s |
+| More aggressive, find more groups | Loose | 8 | 18–19 | 20–30s |
+| Very aggressive, best with manual review | Loose | 10 | 22 | 30s |
+
+How the thresholds are used:
+
+- **Strict** uses the High Threshold.
+- **Normal** uses the Possible Threshold.
+- **Loose** uses Possible Threshold + 3 to catch more compressed, resized, or slightly reframed variants.
+- pHash/dHash results are cached; changing thresholds does not require recomputing hashes, but it does require a new scan to rebuild groups.
+
+Start with `Normal / 8 / 15`. If too few groups are found, try `Loose / 8 / 18`; if unrelated scenes start grouping together, step back to `Normal / 7 / 13`.
+
 ---
 
 ## Requirements
@@ -118,7 +138,7 @@ Or open `PhotoCuller.slnx` in Visual Studio 2026, set `PhotoCuller.App.WinUI` as
 
 ```powershell
 dotnet test src\PhotoCuller.Tests\PhotoCuller.Tests.csproj --configuration Debug
-# Expected: 47 tests, 47 passed
+# Expected: 50 tests, 50 passed
 ```
 
 ---
