@@ -59,6 +59,8 @@ public sealed partial class LibraryPage : Page
         if (_vm.IsScanning)
         {
             ScanInfoBar.IsOpen = true;
+            ScanInfoBar.Message = "正在扫描照片";
+            ScanInfoBar.Severity = Microsoft.UI.Xaml.Controls.InfoBarSeverity.Informational;
             ScanBar.Value = p.Percent;
             ScanStatusText.Text = !string.IsNullOrEmpty(p.Message)
                 ? $"{p.Message}  {p.Percent}%"
