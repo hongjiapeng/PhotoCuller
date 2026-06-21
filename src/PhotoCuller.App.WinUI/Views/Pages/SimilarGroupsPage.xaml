@@ -400,12 +400,14 @@
                                             BorderThickness="3"
                                             BorderBrush="#22C55E"
                                             Visibility="{x:Bind IsRecommendedInSelectedGroup,
-                                                Converter={StaticResource BoolToVis}}"/>
+                                                Converter={StaticResource BoolToVis},
+                                                Mode=OneWay}"/>
                                     <Border CornerRadius="6"
                                             BorderThickness="3"
                                             BorderBrush="{ThemeResource AccentAAFillColorDefaultBrush}"
                                             Visibility="{x:Bind IsCurrentComparePhoto,
-                                                Converter={StaticResource BoolToVis}}"/>
+                                                Converter={StaticResource BoolToVis},
+                                                Mode=OneWay}"/>
                                     <Border VerticalAlignment="Bottom"
                                             CornerRadius="0,0,6,6"
                                             Background="#B0000000"

@@ -14,6 +14,9 @@ public sealed partial class SimilarGroupsPage : Page
 {
     private MainViewModel? _vm;
     private bool _isUpdatingModeSelector;
+    private string? _recommendedImagePath;
+    private string? _compareImagePath;
+    private string? _inspectImagePath;
     public MainViewModel? ViewModel => _vm;
 
     public SimilarGroupsPage()
@@ -67,6 +70,7 @@ public sealed partial class SimilarGroupsPage : Page
         {
             DispatcherQueue.TryEnqueue(() =>
             {
+                UpdateModeSelector();
                 UpdateImages();
                 UpdateZoomState();
                 RefreshStatusBar();
@@ -343,31 +347,41 @@ public sealed partial class SimilarGroupsPage : Page
     {
         if (_vm is null) return;
 
-        SetImageSource(RecommendedImage, RecommendedImagePlaceholder, _vm.RecommendedPhoto);
-        SetImageSource(CompareImage, CompareImagePlaceholder, _vm.ComparePhoto);
-        SetImageSource(InspectImage, InspectImagePlaceholder, _vm.InspectPhoto);
+        SetImageSource(RecommendedImage, RecommendedImagePlaceholder, _vm.RecommendedPhoto, ref _recommendedImagePath);
+        SetImageSource(CompareImage, CompareImagePlaceholder, _vm.ComparePhoto, ref _compareImagePath);
+        SetImageSource(InspectImage, InspectImagePlaceholder, _vm.InspectPhoto, ref _inspectImagePath);
     }
 
     private static void SetImageSource(
         Image image,
         TextBlock placeholder,
-        PhotoItemViewModel? photo)
+        PhotoItemViewModel? photo,
+        ref string? loadedPath)
     {
-        image.Source = null;
-
         if (photo is null || string.IsNullOrWhiteSpace(photo.FilePath) || !File.Exists(photo.FilePath))
         {
+            loadedPath = null;
+            image.Source = null;
             placeholder.Visibility = Visibility.Visible;
+            return;
+        }
+
+        if (string.Equals(loadedPath, photo.FilePath, StringComparison.OrdinalIgnoreCase)
+            && image.Source is not null)
+        {
+            placeholder.Visibility = Visibility.Collapsed;
             return;
         }
 
         try
         {
+            loadedPath = photo.FilePath;
             image.Source = new BitmapImage(new Uri(photo.FilePath));
             placeholder.Visibility = Visibility.Collapsed;
         }
         catch
         {
+            loadedPath = null;
             image.Source = null;
             placeholder.Visibility = Visibility.Visible;
         }
