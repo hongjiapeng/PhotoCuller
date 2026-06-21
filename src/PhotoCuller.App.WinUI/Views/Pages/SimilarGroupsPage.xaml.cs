@@ -477,54 +477,43 @@ public sealed partial class SimilarGroupsPage : Page
 
     private void ImageScrollViewer_ViewChanged(object? sender, ScrollViewerViewChangedEventArgs e)
     {
-        if (_vm is null || _isApplyingZoom || sender is not ScrollViewer scroller)
-            return;
-
-        var zoom = Math.Round(scroller.ZoomFactor, 2);
-        if (_vm.IsFitToWindow)
-        {
-            var photo = GetPhotoForScroller(scroller);
-            var fitZoom = photo is null ? 1 : CalculateFitZoom(scroller, photo);
-            if (Math.Abs(scroller.ZoomFactor - fitZoom) < 0.01)
-                return;
-        }
-
-        if (Math.Abs(_vm.ZoomLevel - zoom) < 0.01 && !_vm.IsFitToWindow)
-            return;
-
-        _vm.IsFitToWindow = false;
-        _vm.ZoomLevel = zoom;
-    }
-
-    private PhotoItemViewModel? GetPhotoForScroller(ScrollViewer scroller)
-    {
-        if (_vm is null)
-            return null;
-
-        if (ReferenceEquals(scroller, RecommendedScrollViewer))
-            return _vm.RecommendedPhoto;
-        if (ReferenceEquals(scroller, CompareScrollViewer))
-            return _vm.ComparePhoto;
-        if (ReferenceEquals(scroller, InspectScrollViewer))
-            return _vm.InspectPhoto;
-
-        return null;
+        // User touchpad/pinch zoom is intentionally local to the image being manipulated.
+        // Toolbar and keyboard zoom commands still use the shared ViewModel zoom state.
     }
 
     private void ImageScrollViewer_PointerWheelChanged(object sender, PointerRoutedEventArgs e)
     {
-        if (_vm is null || IsTextInputFocused())
+        if (IsTextInputFocused() || sender is not ScrollViewer scroller)
             return;
 
         if (!e.KeyModifiers.HasFlag(VirtualKeyModifiers.Control))
             return;
 
         var wheelDelta = e.GetCurrentPoint(sender as UIElement).Properties.MouseWheelDelta;
+        var zoomDelta = wheelDelta > 0 ? 1.15 : 1 / 1.15;
+        var targetZoom = Math.Clamp(scroller.ZoomFactor * zoomDelta, scroller.MinZoomFactor, scroller.MaxZoomFactor);
+        var center = GetViewportCenterRatio(scroller);
+
         if (wheelDelta > 0)
-            _vm.ZoomInCommand.Execute(null);
+            ChangeLocalZoom(scroller, center, targetZoom);
         else if (wheelDelta < 0)
-            _vm.ZoomOutCommand.Execute(null);
+            ChangeLocalZoom(scroller, center, targetZoom);
 
         e.Handled = true;
+    }
+
+    private static void ChangeLocalZoom(
+        ScrollViewer scroller,
+        (double X, double Y) center,
+        double targetZoom)
+    {
+        var unscaledWidth = scroller.ExtentWidth / Math.Max(scroller.ZoomFactor, 0.01);
+        var unscaledHeight = scroller.ExtentHeight / Math.Max(scroller.ZoomFactor, 0.01);
+        var targetExtentWidth = unscaledWidth * targetZoom;
+        var targetExtentHeight = unscaledHeight * targetZoom;
+        var horizontalOffset = Math.Max(0, targetExtentWidth * center.X - scroller.ViewportWidth / 2);
+        var verticalOffset = Math.Max(0, targetExtentHeight * center.Y - scroller.ViewportHeight / 2);
+
+        scroller.ChangeView(horizontalOffset, verticalOffset, (float)targetZoom, true);
     }
 }
