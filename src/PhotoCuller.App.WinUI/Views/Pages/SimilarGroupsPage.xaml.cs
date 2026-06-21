@@ -18,7 +18,6 @@ public sealed partial class SimilarGroupsPage : Page
     private string? _compareImagePath;
     private string? _inspectImagePath;
     private bool _wasFitToWindow = true;
-    private bool _isApplyingZoom;
     public MainViewModel? ViewModel => _vm;
 
     public SimilarGroupsPage()
@@ -222,6 +221,9 @@ public sealed partial class SimilarGroupsPage : Page
         _vm.SetActualSizeCommand.Execute(null);
     }
 
+    private void LargeImage_ImageOpened(object sender, RoutedEventArgs e)
+        => UpdateZoomState();
+
     private async void MoveOthers_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not FrameworkElement el || el.Tag is not Guid groupId) return;
@@ -397,11 +399,9 @@ public sealed partial class SimilarGroupsPage : Page
     {
         if (_vm is null) return;
 
-        _isApplyingZoom = true;
         ApplyZoom(RecommendedImage, RecommendedScrollViewer, _vm.RecommendedPhoto);
         ApplyZoom(CompareImage, CompareScrollViewer, _vm.ComparePhoto);
         ApplyZoom(InspectImage, InspectScrollViewer, _vm.InspectPhoto);
-        DispatcherQueue.TryEnqueue(() => _isApplyingZoom = false);
     }
 
     private void ApplyZoom(Image image, ScrollViewer scroller, PhotoItemViewModel? photo)
@@ -417,27 +417,40 @@ public sealed partial class SimilarGroupsPage : Page
         }
 
         var center = GetViewportCenterRatio(scroller);
+        var displaySize = GetDisplaySize(image, photo);
         var targetZoom = _vm.IsFitToWindow
-            ? CalculateFitZoom(scroller, photo)
+            ? CalculateFitZoom(scroller, displaySize)
             : Math.Clamp(_vm.ZoomLevel, scroller.MinZoomFactor, scroller.MaxZoomFactor);
 
-        image.Stretch = Stretch.Fill;
-        image.Width = photo.Width > 0 ? photo.Width : double.NaN;
-        image.Height = photo.Height > 0 ? photo.Height : double.NaN;
+        image.Stretch = Stretch.Uniform;
+        image.Width = displaySize.Width;
+        image.Height = displaySize.Height;
         image.HorizontalAlignment = HorizontalAlignment.Left;
         image.VerticalAlignment = VerticalAlignment.Top;
 
-        RestoreViewportCenter(scroller, photo, center, targetZoom);
+        RestoreViewportCenter(scroller, displaySize, center, targetZoom);
     }
 
-    private static double CalculateFitZoom(ScrollViewer scroller, PhotoItemViewModel photo)
+    private static (double Width, double Height) GetDisplaySize(Image image, PhotoItemViewModel photo)
     {
-        if (photo.Width <= 0 || photo.Height <= 0 || scroller.ActualWidth <= 0 || scroller.ActualHeight <= 0)
+        if (image.Source is BitmapImage bitmap && bitmap.PixelWidth > 0 && bitmap.PixelHeight > 0)
+            return (bitmap.PixelWidth, bitmap.PixelHeight);
+
+        var width = photo.Width > 0 ? photo.Width : 1;
+        var height = photo.Height > 0 ? photo.Height : 1;
+        return (width, height);
+    }
+
+    private static double CalculateFitZoom(
+        ScrollViewer scroller,
+        (double Width, double Height) displaySize)
+    {
+        if (displaySize.Width <= 0 || displaySize.Height <= 0 || scroller.ActualWidth <= 0 || scroller.ActualHeight <= 0)
             return 1;
 
         var minZoom = scroller.MinZoomFactor;
-        var horizontalFit = Math.Max(minZoom, (scroller.ActualWidth - 4) / photo.Width);
-        var verticalFit = Math.Max(minZoom, (scroller.ActualHeight - 4) / photo.Height);
+        var horizontalFit = Math.Max(minZoom, (scroller.ActualWidth - 4) / displaySize.Width);
+        var verticalFit = Math.Max(minZoom, (scroller.ActualHeight - 4) / displaySize.Height);
         return Math.Clamp(Math.Min(horizontalFit, verticalFit), scroller.MinZoomFactor, scroller.MaxZoomFactor);
     }
 
@@ -460,14 +473,14 @@ public sealed partial class SimilarGroupsPage : Page
 
     private void RestoreViewportCenter(
         ScrollViewer scroller,
-        PhotoItemViewModel photo,
+        (double Width, double Height) displaySize,
         (double X, double Y) center,
         double targetZoom)
     {
         DispatcherQueue.TryEnqueue(() =>
         {
-            var extentWidth = photo.Width * targetZoom;
-            var extentHeight = photo.Height * targetZoom;
+            var extentWidth = displaySize.Width * targetZoom;
+            var extentHeight = displaySize.Height * targetZoom;
             var horizontalOffset = Math.Max(0, extentWidth * center.X - scroller.ViewportWidth / 2);
             var verticalOffset = Math.Max(0, extentHeight * center.Y - scroller.ViewportHeight / 2);
 
