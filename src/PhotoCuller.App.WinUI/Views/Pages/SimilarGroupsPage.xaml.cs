@@ -17,6 +17,8 @@ public sealed partial class SimilarGroupsPage : Page
     private string? _recommendedImagePath;
     private string? _compareImagePath;
     private string? _inspectImagePath;
+    private bool _wasFitToWindow = true;
+    private bool _isApplyingZoom;
     public MainViewModel? ViewModel => _vm;
 
     public SimilarGroupsPage()
@@ -79,7 +81,11 @@ public sealed partial class SimilarGroupsPage : Page
 
         if (e.PropertyName is nameof(MainViewModel.ZoomLevel)
                            or nameof(MainViewModel.IsFitToWindow))
-            DispatcherQueue.TryEnqueue(UpdateZoomState);
+            DispatcherQueue.TryEnqueue(() =>
+            {
+                UpdateZoomState();
+                _wasFitToWindow = _vm?.IsFitToWindow ?? true;
+            });
     }
 
     private void Refresh()
@@ -391,29 +397,134 @@ public sealed partial class SimilarGroupsPage : Page
     {
         if (_vm is null) return;
 
+        _isApplyingZoom = true;
         ApplyZoom(RecommendedImage, RecommendedScrollViewer, _vm.RecommendedPhoto);
         ApplyZoom(CompareImage, CompareScrollViewer, _vm.ComparePhoto);
         ApplyZoom(InspectImage, InspectScrollViewer, _vm.InspectPhoto);
+        DispatcherQueue.TryEnqueue(() => _isApplyingZoom = false);
     }
 
-    private void ApplyZoom(Image image, FrameworkElement viewport, PhotoItemViewModel? photo)
+    private void ApplyZoom(Image image, ScrollViewer scroller, PhotoItemViewModel? photo)
     {
         if (_vm is null) return;
 
-        if (_vm.IsFitToWindow || photo is null)
+        if (photo is null)
         {
-            image.Stretch = Stretch.Uniform;
-            image.Width = Math.Max(0, viewport.ActualWidth - 4);
-            image.Height = Math.Max(0, viewport.ActualHeight - 4);
-            image.HorizontalAlignment = HorizontalAlignment.Stretch;
-            image.VerticalAlignment = VerticalAlignment.Stretch;
+            image.Width = double.NaN;
+            image.Height = double.NaN;
+            scroller.ChangeView(0, 0, 1, true);
             return;
         }
 
+        var center = GetViewportCenterRatio(scroller);
+        var targetZoom = _vm.IsFitToWindow
+            ? CalculateFitZoom(scroller, photo)
+            : Math.Clamp(_vm.ZoomLevel, scroller.MinZoomFactor, scroller.MaxZoomFactor);
+
         image.Stretch = Stretch.Fill;
-        image.Width = photo.Width > 0 ? photo.Width * _vm.ZoomLevel : double.NaN;
-        image.Height = photo.Height > 0 ? photo.Height * _vm.ZoomLevel : double.NaN;
+        image.Width = photo.Width > 0 ? photo.Width : double.NaN;
+        image.Height = photo.Height > 0 ? photo.Height : double.NaN;
         image.HorizontalAlignment = HorizontalAlignment.Left;
         image.VerticalAlignment = VerticalAlignment.Top;
+
+        RestoreViewportCenter(scroller, photo, center, targetZoom);
+    }
+
+    private static double CalculateFitZoom(ScrollViewer scroller, PhotoItemViewModel photo)
+    {
+        if (photo.Width <= 0 || photo.Height <= 0 || scroller.ActualWidth <= 0 || scroller.ActualHeight <= 0)
+            return 1;
+
+        var minZoom = scroller.MinZoomFactor;
+        var horizontalFit = Math.Max(minZoom, (scroller.ActualWidth - 4) / photo.Width);
+        var verticalFit = Math.Max(minZoom, (scroller.ActualHeight - 4) / photo.Height);
+        return Math.Clamp(Math.Min(horizontalFit, verticalFit), scroller.MinZoomFactor, scroller.MaxZoomFactor);
+    }
+
+    private (double X, double Y) GetViewportCenterRatio(ScrollViewer scroller)
+    {
+        if (_wasFitToWindow
+            || scroller.ExtentWidth <= scroller.ViewportWidth
+            || scroller.ExtentHeight <= scroller.ViewportHeight)
+        {
+            return (0.5, 0.5);
+        }
+
+        var centerX = scroller.HorizontalOffset + scroller.ViewportWidth / 2;
+        var centerY = scroller.VerticalOffset + scroller.ViewportHeight / 2;
+
+        return (
+            Math.Clamp(centerX / scroller.ExtentWidth, 0, 1),
+            Math.Clamp(centerY / scroller.ExtentHeight, 0, 1));
+    }
+
+    private void RestoreViewportCenter(
+        ScrollViewer scroller,
+        PhotoItemViewModel photo,
+        (double X, double Y) center,
+        double targetZoom)
+    {
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            var extentWidth = photo.Width * targetZoom;
+            var extentHeight = photo.Height * targetZoom;
+            var horizontalOffset = Math.Max(0, extentWidth * center.X - scroller.ViewportWidth / 2);
+            var verticalOffset = Math.Max(0, extentHeight * center.Y - scroller.ViewportHeight / 2);
+
+            scroller.ChangeView(horizontalOffset, verticalOffset, (float)targetZoom, true);
+        });
+    }
+
+    private void ImageScrollViewer_ViewChanged(object? sender, ScrollViewerViewChangedEventArgs e)
+    {
+        if (_vm is null || _isApplyingZoom || sender is not ScrollViewer scroller)
+            return;
+
+        var zoom = Math.Round(scroller.ZoomFactor, 2);
+        if (_vm.IsFitToWindow)
+        {
+            var photo = GetPhotoForScroller(scroller);
+            var fitZoom = photo is null ? 1 : CalculateFitZoom(scroller, photo);
+            if (Math.Abs(scroller.ZoomFactor - fitZoom) < 0.01)
+                return;
+        }
+
+        if (Math.Abs(_vm.ZoomLevel - zoom) < 0.01 && !_vm.IsFitToWindow)
+            return;
+
+        _vm.IsFitToWindow = false;
+        _vm.ZoomLevel = zoom;
+    }
+
+    private PhotoItemViewModel? GetPhotoForScroller(ScrollViewer scroller)
+    {
+        if (_vm is null)
+            return null;
+
+        if (ReferenceEquals(scroller, RecommendedScrollViewer))
+            return _vm.RecommendedPhoto;
+        if (ReferenceEquals(scroller, CompareScrollViewer))
+            return _vm.ComparePhoto;
+        if (ReferenceEquals(scroller, InspectScrollViewer))
+            return _vm.InspectPhoto;
+
+        return null;
+    }
+
+    private void ImageScrollViewer_PointerWheelChanged(object sender, PointerRoutedEventArgs e)
+    {
+        if (_vm is null || IsTextInputFocused())
+            return;
+
+        if (!e.KeyModifiers.HasFlag(VirtualKeyModifiers.Control))
+            return;
+
+        var wheelDelta = e.GetCurrentPoint(sender as UIElement).Properties.MouseWheelDelta;
+        if (wheelDelta > 0)
+            _vm.ZoomInCommand.Execute(null);
+        else if (wheelDelta < 0)
+            _vm.ZoomOutCommand.Execute(null);
+
+        e.Handled = true;
     }
 }

@@ -275,7 +275,12 @@
                                       HorizontalScrollBarVisibility="Auto"
                                       VerticalScrollBarVisibility="Auto"
                                       HorizontalScrollMode="Enabled"
-                                      VerticalScrollMode="Enabled">
+                                      VerticalScrollMode="Enabled"
+                                      ZoomMode="Enabled"
+                                      MinZoomFactor="0.1"
+                                      MaxZoomFactor="8"
+                                      ViewChanged="ImageScrollViewer_ViewChanged"
+                                      PointerWheelChanged="ImageScrollViewer_PointerWheelChanged">
                             <Grid>
                                 <Image x:Name="RecommendedImage"
                                        Stretch="Uniform"
@@ -330,7 +335,12 @@
                                       HorizontalScrollBarVisibility="Auto"
                                       VerticalScrollBarVisibility="Auto"
                                       HorizontalScrollMode="Enabled"
-                                      VerticalScrollMode="Enabled">
+                                      VerticalScrollMode="Enabled"
+                                      ZoomMode="Enabled"
+                                      MinZoomFactor="0.1"
+                                      MaxZoomFactor="8"
+                                      ViewChanged="ImageScrollViewer_ViewChanged"
+                                      PointerWheelChanged="ImageScrollViewer_PointerWheelChanged">
                             <Grid>
                                 <Image x:Name="CompareImage"
                                        Stretch="Uniform"
@@ -478,7 +488,12 @@
                               HorizontalScrollBarVisibility="Auto"
                               VerticalScrollBarVisibility="Auto"
                               HorizontalScrollMode="Enabled"
-                              VerticalScrollMode="Enabled">
+                              VerticalScrollMode="Enabled"
+                              ZoomMode="Enabled"
+                              MinZoomFactor="0.1"
+                              MaxZoomFactor="8"
+                              ViewChanged="ImageScrollViewer_ViewChanged"
+                              PointerWheelChanged="ImageScrollViewer_PointerWheelChanged">
                     <Grid>
                         <Image x:Name="InspectImage"
                                Stretch="Uniform"/>
