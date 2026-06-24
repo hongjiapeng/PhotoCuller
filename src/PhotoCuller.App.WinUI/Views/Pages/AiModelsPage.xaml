@@ -227,6 +227,16 @@
                             <Button Grid.Column="1" Content="浏览"
                                     Click="BrowseLocalPath_Click"/>
                         </Grid>
+                        <TextBlock Text="模型输出预设" FontSize="12" Opacity="0.5"/>
+                        <ComboBox x:Name="LocalPresetCombo"
+                                  HorizontalAlignment="Stretch"
+                                  SelectedValuePath="Tag">
+                            <ComboBoxItem Content="0–1 归一化分数" Tag="clip-aesthetic-0-1"/>
+                            <ComboBoxItem Content="-1–1 分数（Facet 映射）" Tag="clip-aesthetic-minus1-1"/>
+                            <ComboBoxItem Content="1–10 AVA 美学分" Tag="clip-aesthetic-1-10"/>
+                        </ComboBox>
+                        <TextBlock FontSize="11" Opacity="0.5" TextWrapping="Wrap"
+                                   Text="模型需接受 NCHW/NHWC RGB float 张量；应用会使用 CLIP 均值与标准差预处理。"/>
                     </StackPanel>
 
                     <!-- CLOUD model fields -->

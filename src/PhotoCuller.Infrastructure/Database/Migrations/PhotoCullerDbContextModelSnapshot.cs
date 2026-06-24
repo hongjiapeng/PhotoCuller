@@ -15,7 +15,7 @@ namespace PhotoCuller.Infrastructure.Database.Migrations
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "9.0.5");
+            modelBuilder.HasAnnotation("ProductVersion", "10.0.9");
 
             modelBuilder.Entity("PhotoCuller.Core.Models.AiModelProfile", b =>
                 {
@@ -46,6 +46,13 @@ namespace PhotoCuller.Infrastructure.Database.Migrations
                     b.Property<string>("LocalModelPath")
                         .HasMaxLength(1024)
                         .HasColumnType("TEXT");
+
+                    b.Property<string>("LocalModelPreset")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue("clip-aesthetic-0-1");
 
                     b.Property<int>("MaxConcurrency")
                         .HasColumnType("INTEGER");
@@ -170,6 +177,9 @@ namespace PhotoCuller.Infrastructure.Database.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
+                    b.Property<float?>("AestheticScore")
+                        .HasColumnType("REAL");
+
                     b.Property<int>("AnalysisVersion")
                         .HasColumnType("INTEGER");
 
@@ -246,6 +256,10 @@ namespace PhotoCuller.Infrastructure.Database.Migrations
                         .HasColumnType("REAL");
 
                     b.Property<DateTime?>("ScanTime")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ScoringModel")
+                        .HasMaxLength(512)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Sha256Hash")

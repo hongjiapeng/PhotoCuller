@@ -70,7 +70,8 @@ public sealed partial class AiModelsViewModel : ObservableObject
         {
             Name         = "新本地模型",
             ProviderType = ProviderType.Local,
-            ModelType    = ModelType.Basic,
+            ModelType    = ModelType.Aesthetic,
+            LocalModelPreset = "clip-aesthetic-0-1",
             IsEnabled    = true,
         };
         await _repo.AddAsync(profile, ct);

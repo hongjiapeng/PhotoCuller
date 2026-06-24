@@ -7,6 +7,7 @@ using PhotoCuller.Core.Interfaces.Hashing;
 using PhotoCuller.Core.Interfaces.Scanning;
 using PhotoCuller.Core.Interfaces.Scoring;
 using PhotoCuller.Infrastructure.AiProviders.CloudModels;
+using PhotoCuller.Infrastructure.AiProviders.LocalModels;
 using PhotoCuller.Core.Interfaces.Storage;
 using PhotoCuller.Infrastructure.Database;
 using PhotoCuller.Infrastructure.FileSystem;
@@ -88,6 +89,7 @@ public static class InfrastructureServiceExtensions
 
         // AI explanation (Ollama / OpenAI-compatible, falls back to algorithm)
         services.AddTransient<IAiExplanationService, OpenAiExplanationService>();
+        services.AddSingleton<ILocalAiModelProvider, OnnxAestheticModelProvider>();
 
         return services;
     }

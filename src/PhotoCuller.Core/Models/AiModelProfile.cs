@@ -36,6 +36,12 @@ public class AiModelProfile
     // ── Local model configuration ────────────────────────────────────
     public string? LocalModelPath { get; set; }
 
+    /// <summary>
+    /// ONNX preprocessing/output contract. Supported initial values:
+    /// clip-aesthetic-0-1, clip-aesthetic-minus1-1, clip-aesthetic-1-10.
+    /// </summary>
+    public string LocalModelPreset { get; set; } = "clip-aesthetic-0-1";
+
     /// <summary>Embedding vector dimension (used by embedding models).</summary>
     public int? EmbeddingDimension { get; set; }
 

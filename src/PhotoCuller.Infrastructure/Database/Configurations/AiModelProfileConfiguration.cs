@@ -38,6 +38,11 @@ internal sealed class AiModelProfileConfiguration : IEntityTypeConfiguration<AiM
         builder.Property(m => m.LocalModelPath)
             .HasMaxLength(1024);
 
+        builder.Property(m => m.LocalModelPreset)
+            .IsRequired()
+            .HasMaxLength(64)
+            .HasDefaultValue("clip-aesthetic-0-1");
+
         builder.Property(m => m.SupportedTasks)
             .HasConversion(
                 v => JsonSerializer.Serialize(v, JsonOpts),

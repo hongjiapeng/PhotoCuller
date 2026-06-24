@@ -88,6 +88,10 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private int _compositionPercent = 10;
     [ObservableProperty] private int _colorPercent       = 0;
 
+    // ── Local AI scoring ──────────────────────────────────────────────────────
+    [ObservableProperty] private bool _enableLocalAi;
+    [ObservableProperty] private int _aestheticBlendPercent = 25;
+
     // ── Similar ───────────────────────────────────────────────────────────────
     [ObservableProperty] private int  _similarityThresholdHigh     = 8;
     [ObservableProperty] private int  _similarityThresholdPossible = 15;
@@ -151,6 +155,8 @@ public sealed partial class SettingsViewModel : ObservableObject
         ResolutionPercent  = _settings.ScoringWeights.ResolutionPercent;
         CompositionPercent = _settings.ScoringWeights.CompositionPercent;
         ColorPercent       = _settings.ScoringWeights.ColorPercent;
+        EnableLocalAi      = _settings.EnableLocalAi;
+        AestheticBlendPercent = _settings.AestheticBlendPercent;
 
         SimilarityThresholdHigh     = _settings.SimilarityThresholdHigh;
         SimilarityThresholdPossible = _settings.SimilarityThresholdPossible;
@@ -203,6 +209,8 @@ public sealed partial class SettingsViewModel : ObservableObject
             CompositionPercent = CompositionPercent,
             ColorPercent       = ColorPercent,
         };
+        _settings.EnableLocalAi = EnableLocalAi;
+        _settings.AestheticBlendPercent = Math.Clamp(AestheticBlendPercent, 0, 100);
 
         _settings.SimilarityThresholdHigh     = SimilarityThresholdHigh;
         _settings.SimilarityThresholdPossible = SimilarityThresholdPossible;

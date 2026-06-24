@@ -65,6 +65,13 @@ public class AppSettings
     public bool EnableLocalAi { get; set; } = false;
     public Guid? SelectedModelProfileId { get; set; }
 
+    /// <summary>
+    /// Percentage used to blend the optional model aesthetic score into the
+    /// algorithmic technical score. The technical score remains authoritative
+    /// when no compatible model is enabled or inference fails.
+    /// </summary>
+    public int AestheticBlendPercent { get; set; } = 25;
+
     // ── Cache ────────────────────────────────────────────────────────
     public string? ThumbnailCacheDirectory { get; set; }
     public string? DatabasePath { get; set; }

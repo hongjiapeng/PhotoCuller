@@ -23,6 +23,7 @@ public sealed partial class AiModelProfileViewModel : ObservableObject
         BaseUrl        = model.BaseUrl ?? string.Empty;
         ModelId        = model.ModelId ?? string.Empty;
         LocalModelPath = model.LocalModelPath ?? string.Empty;
+        LocalModelPreset = model.LocalModelPreset;
         IsEnabled      = model.IsEnabled;
         TimeoutSeconds = model.TimeoutSeconds;
         MaxConcurrency = model.MaxConcurrency;
@@ -38,6 +39,7 @@ public sealed partial class AiModelProfileViewModel : ObservableObject
     [ObservableProperty] private string       _baseUrl        = string.Empty;
     [ObservableProperty] private string       _modelId        = string.Empty;
     [ObservableProperty] private string       _localModelPath = string.Empty;
+    [ObservableProperty] private string       _localModelPreset = "clip-aesthetic-0-1";
     [ObservableProperty] private bool         _isEnabled      = true;
     [ObservableProperty] private int          _timeoutSeconds = 30;
     [ObservableProperty] private int          _maxConcurrency = 2;
@@ -82,6 +84,9 @@ public sealed partial class AiModelProfileViewModel : ObservableObject
         Model.BaseUrl        = string.IsNullOrWhiteSpace(BaseUrl) ? null : BaseUrl;
         Model.ModelId        = string.IsNullOrWhiteSpace(ModelId) ? null : ModelId;
         Model.LocalModelPath = string.IsNullOrWhiteSpace(LocalModelPath) ? null : LocalModelPath;
+        Model.LocalModelPreset = string.IsNullOrWhiteSpace(LocalModelPreset)
+            ? "clip-aesthetic-0-1"
+            : LocalModelPreset;
         Model.IsEnabled      = IsEnabled;
         Model.TimeoutSeconds = TimeoutSeconds;
         Model.MaxConcurrency = MaxConcurrency;

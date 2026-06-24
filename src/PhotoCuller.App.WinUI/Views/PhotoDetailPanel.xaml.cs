@@ -63,6 +63,7 @@ public sealed partial class PhotoDetailPanel : UserControl
         RowResolution.Value  = vm.ResolutionScore;
         RowComposition.Value = vm.CompositionScore;
         RowColor.Value       = vm.ColorScore;
+        RowAesthetic.Value   = vm.AestheticScore;
 
         // File info
         InfoFileName.Text   = vm.FileName;

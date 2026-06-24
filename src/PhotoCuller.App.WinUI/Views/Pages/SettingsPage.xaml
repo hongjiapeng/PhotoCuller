@@ -183,6 +183,30 @@
                             Command="{x:Bind ViewModel.ResetWeightsCommand}"/>
                 </StackPanel>
 
+                <!-- ── LOCAL AI SCORING ───────────────────────────────── -->
+                <TextBlock Style="{StaticResource SectionHeader}" Text="本地模型评分"/>
+                <InfoBar IsOpen="True" IsClosable="False" Severity="Informational"
+                         Message="启用后，将使用 AI 模型管理中第一个已启用的本地美学 ONNX 模型。模型不可用时自动回退到传统评分。"
+                         Margin="0,0,0,10"/>
+                <StackPanel Spacing="10">
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <StackPanel><TextBlock Text="启用本地美学模型" FontSize="13"/>
+                        <TextBlock Style="{StaticResource RowDesc}" Text="照片不会上传；推理完全在本机执行"/></StackPanel>
+                        <ToggleSwitch Grid.Column="1"
+                                      IsOn="{x:Bind ViewModel.EnableLocalAi, Mode=TwoWay}"
+                                      OnContent="" OffContent=""/>
+                    </Grid>
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="180"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <StackPanel><TextBlock Style="{StaticResource RowLabel}" Text="美学评分占比"/>
+                        <TextBlock Style="{StaticResource RowDesc}" Text="建议 20–30%；其余部分使用传统技术评分"/></StackPanel>
+                        <NumberBox Grid.Column="1" Minimum="0" Maximum="100"
+                                   SpinButtonPlacementMode="Compact"
+                                   Value="{x:Bind ViewModel.AestheticBlendPercent, Mode=TwoWay}"/>
+                    </Grid>
+                </StackPanel>
+
                 <!-- ── SIMILAR ─────────────────────────────────────────── -->
                 <TextBlock Style="{StaticResource SectionHeader}" Text="相似照片设置"/>
                 <StackPanel Spacing="10">

@@ -57,6 +57,20 @@ The current scoring is **100% algorithm-based** — no AI model is required for 
 | Semantic search embeddings | CLIP / SigLIP (ONNX or API) | Optional |
 | Face quality scoring | InsightFace (ONNX) | Optional, roadmap |
 
+#### Local ONNX aesthetic scoring
+
+PhotoCuller can blend a local aesthetic model with its existing technical score:
+
+1. Add a local `.onnx` model under **AI Models** and choose **Aesthetic**.
+2. Select the output preset: `0–1`, `-1–1`, or `1–10 AVA`.
+3. Enable local model scoring in **Settings** and choose a blend percentage
+   (20–30% is a practical starting point).
+
+The initial model contract accepts one `float32` RGB image tensor in NCHW or
+NHWC layout, uses CLIP mean/std normalization, and returns one scalar score.
+If loading or inference fails, scoring automatically falls back to the existing
+technical metrics.
+
 **Supported AI backends** (configure in the AI Model Management page):
 
 | Backend | How to connect |

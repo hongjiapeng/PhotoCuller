@@ -69,6 +69,7 @@ public sealed partial class AiModelsPage : Page
 
         // Local fields
         LocalPathBox.Text = vm.LocalModelPath;
+        SelectComboByTag(LocalPresetCombo, vm.LocalModelPreset);
     }
 
     private static void SelectComboByTag(ComboBox combo, string tag)
@@ -117,6 +118,8 @@ public sealed partial class AiModelsPage : Page
         vm.BaseUrl       = BaseUrlBox.Text.Trim();
         vm.ModelId       = ModelIdBox.Text.Trim();
         vm.LocalModelPath = LocalPathBox.Text.Trim();
+        vm.LocalModelPreset = LocalPresetCombo.SelectedValue?.ToString()
+            ?? "clip-aesthetic-0-1";
         vm.TimeoutSeconds = (int)TimeoutBox.Value;
         vm.MaxConcurrency = (int)ConcurrencyBox.Value;
         vm.DailyLimit     = (int)DailyLimitBox.Value;

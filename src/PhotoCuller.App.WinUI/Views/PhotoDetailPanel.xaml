@@ -85,6 +85,7 @@
                 <local:ScoreRow x:Name="RowResolution"  Label="分辨率"/>
                 <local:ScoreRow x:Name="RowComposition" Label="构图"/>
                 <local:ScoreRow x:Name="RowColor"       Label="色彩"/>
+                <local:ScoreRow x:Name="RowAesthetic"   Label="模型美学"/>
             </StackPanel>
 
             <!-- File info -->

@@ -36,6 +36,9 @@ internal sealed class PhotoItemConfiguration : IEntityTypeConfiguration<PhotoIte
         builder.Property(p => p.ThumbnailPath)
             .HasMaxLength(1024);
 
+        builder.Property(p => p.ScoringModel)
+            .HasMaxLength(512);
+
         builder.Property(p => p.RecommendationStatus)
             .HasConversion<int>()
             .HasDefaultValue(RecommendationStatus.Unprocessed);

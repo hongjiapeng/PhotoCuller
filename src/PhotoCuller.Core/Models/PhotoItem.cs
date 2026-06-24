@@ -49,6 +49,12 @@ public class PhotoItem
     public float? CompositionScore { get; set; }
     public float? ColorScore { get; set; }
 
+    /// <summary>Optional local-model aesthetic score (0-100).</summary>
+    public float? AestheticScore { get; set; }
+
+    /// <summary>Name and output preset of the model that produced AestheticScore.</summary>
+    public string? ScoringModel { get; set; }
+
     /// <summary>Face quality score (only populated when a face is detected).</summary>
     public float? FaceQualityScore { get; set; }
 

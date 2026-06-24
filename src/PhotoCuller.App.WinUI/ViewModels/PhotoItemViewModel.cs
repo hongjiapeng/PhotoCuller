@@ -31,6 +31,8 @@ public sealed partial class PhotoItemViewModel : ObservableObject
     public float? ResolutionScore => Model.ResolutionScore;
     public float? CompositionScore => Model.CompositionScore;
     public float? ColorScore     => Model.ColorScore;
+    public float? AestheticScore => Model.AestheticScore;
+    public string? ScoringModel  => Model.ScoringModel;
 
     public string? ExifTaken =>
         Model.ExifTakenTime?.ToString("yyyy-MM-dd HH:mm:ss")
