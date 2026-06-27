@@ -190,6 +190,10 @@ public sealed partial class AiModelsViewModel : ObservableObject
                 {
                     StatusMessage = "✗ 未填写模型路径";
                 }
+                else if (!string.Equals(Path.GetExtension(modelPath), ".onnx", StringComparison.OrdinalIgnoreCase))
+                {
+                    StatusMessage = "✗ 本地评分当前只支持 .onnx 文件；请先将下载的权重转换为 ONNX";
+                }
                 else
                 {
                     StatusMessage = File.Exists(modelPath)

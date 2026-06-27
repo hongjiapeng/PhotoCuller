@@ -22,6 +22,10 @@ logs/
 *.db-shm
 *.db-wal
 
+## Local model exports
+models/
+*.onnx
+
 ## Thumbnails cache
 thumbnails/
 

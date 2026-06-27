@@ -168,8 +168,6 @@ public sealed partial class AiModelsPage : Page
     {
         var picker = new Windows.Storage.Pickers.FileOpenPicker();
         picker.FileTypeFilter.Add(".onnx");
-        picker.FileTypeFilter.Add(".pt");
-        picker.FileTypeFilter.Add(".bin");
         picker.SuggestedStartLocation =
             Windows.Storage.Pickers.PickerLocationId.ComputerFolder;
 
@@ -181,5 +179,108 @@ public sealed partial class AiModelsPage : Page
         var file = await picker.PickSingleFileAsync();
         if (file is not null)
             LocalPathBox.Text = file.Path;
+    }
+
+    // ── Recommended model sources ────────────────────────────────────────────
+
+    private async void RecommendedModels_Click(object sender, RoutedEventArgs e)
+    {
+        var content = new StackPanel
+        {
+            Spacing = 12,
+            MaxWidth = 640,
+        };
+
+        content.Children.Add(new TextBlock
+        {
+            Text = "这些模型适合做照片美学评分，但大多发布为 PyTorch / safetensors 权重。PhotoCuller 当前本地推理入口需要完整的 .onnx 图片输入模型；下载后请用 tools/model-export 中的脚本转换，再在本页选择 .onnx 文件。",
+            TextWrapping = TextWrapping.Wrap,
+        });
+
+        AddModelSource(
+            content,
+            "Aesthetics Predictor V2 — SAC + LOGOS + AVA",
+            "Hugging Face 上下载量较高的 CLIP 美学评分模型，适合作为默认推荐来源；通常需要导出为 ONNX 后使用。",
+            "https://huggingface.co/shunk031/aesthetics-predictor-v2-sac-logos-ava1-l14-linearMSE");
+
+        AddModelSource(
+            content,
+            "Improved Aesthetic Predictor 权重集合",
+            "包含 LAION 系列 aesthetic predictor 的 .pth 权重，可作为导出/转换素材。",
+            "https://huggingface.co/camenduru/improved-aesthetic-predictor");
+
+        AddModelSource(
+            content,
+            "Improved Aesthetic Predictor 源码",
+            "原始推理与训练代码，适合用来确认模型结构或编写 ONNX 导出脚本。",
+            "https://github.com/christophschuhmann/improved-aesthetic-predictor");
+
+        content.Children.Add(new InfoBar
+        {
+            IsOpen = true,
+            IsClosable = false,
+            Severity = InfoBarSeverity.Warning,
+            Title = "兼容性提醒",
+            Message = "请不要直接把 .pth、.pt、.bin 或 .safetensors 当作本地模型路径；它们需要先转换为 .onnx。",
+        });
+
+        var dialog = new ContentDialog
+        {
+            Title = "推荐美学评分模型",
+            Content = new ScrollViewer
+            {
+                MaxHeight = 520,
+                Content = content,
+            },
+            CloseButtonText = "关闭",
+            DefaultButton = ContentDialogButton.Close,
+            XamlRoot = XamlRoot,
+        };
+
+        await dialog.ShowAsync();
+    }
+
+    private static void AddModelSource(
+        Panel parent,
+        string title,
+        string description,
+        string url)
+    {
+        var card = new Border
+        {
+            Padding = new Thickness(12),
+            CornerRadius = new CornerRadius(8),
+            BorderThickness = new Thickness(1),
+        };
+        if (Application.Current.Resources.TryGetValue("DividerStrokeColorDefaultBrush", out var brush)
+            && brush is Microsoft.UI.Xaml.Media.Brush borderBrush)
+        {
+            card.BorderBrush = borderBrush;
+        }
+
+        var stack = new StackPanel { Spacing = 6 };
+        stack.Children.Add(new HyperlinkButton
+        {
+            Content = title,
+            NavigateUri = new Uri(url),
+            Padding = new Thickness(0),
+            HorizontalAlignment = HorizontalAlignment.Left,
+        });
+        stack.Children.Add(new TextBlock
+        {
+            Text = description,
+            Opacity = 0.72,
+            TextWrapping = TextWrapping.Wrap,
+        });
+        stack.Children.Add(new TextBlock
+        {
+            Text = url,
+            FontSize = 11,
+            Opacity = 0.5,
+            TextWrapping = TextWrapping.WrapWholeWords,
+        });
+
+        card.Child = stack;
+        parent.Children.Add(card);
     }
 }

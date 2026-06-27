@@ -71,6 +71,30 @@ NHWC layout, uses CLIP mean/std normalization, and returns one scalar score.
 If loading or inference fails, scoring automatically falls back to the existing
 technical metrics.
 
+The **AI Models** page includes recommended model links. Common aesthetic
+predictors, including LAION improved aesthetic predictor and Aesthetics
+Predictor V2, are often published as `.pth` / `.safetensors` weights. Export
+them to a compatible `.onnx` model before using them for local scoring. See
+`tools/model-export/README.md` for the export scripts.
+
+The recommended local aesthetic route is **CLIP ViT-L/14 + the LAION /
+improved-aesthetic-predictor MLP head**. This family of models is well known
+in open-source image-data filtering and generative-AI dataset curation: LAION
+used aesthetic predictors to estimate broad 1–10 human preference scores for
+large image-text datasets and to build LAION-Aesthetics subsets, while
+`improved-aesthetic-predictor` is a common CLIP-embedding aesthetic baseline.
+
+Treat this as a ranking signal, not as an absolute judge of taste:
+
+- Good for broad visual-appeal sorting across travel, portrait, landscape, and generated images.
+- Good as an extra signal blended with sharpness, exposure, contrast, and resolution.
+- Not reliable for personal memory value, family expressions, storytelling, or professional artistic merit.
+- May prefer clean subjects, saturated color, commercial polish, and web-image aesthetics.
+
+For that reason, a **20–30%** aesthetic blend is recommended. The default
+starting point is 25%, leaving the traditional technical score in control while
+the model contributes “does this look pleasing?” signal.
+
 **Supported AI backends** (configure in the AI Model Management page):
 
 | Backend | How to connect |

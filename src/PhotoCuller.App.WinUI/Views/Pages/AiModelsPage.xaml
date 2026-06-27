@@ -216,6 +216,17 @@
 
                     <!-- LOCAL model fields -->
                     <StackPanel x:Name="LocalFields" Spacing="10" Margin="0,0,0,14">
+                        <InfoBar IsOpen="True"
+                                 IsClosable="False"
+                                 Severity="Informational"
+                                 Title="还没有本地美学评分模型？"
+                                 Message="可以从推荐来源下载模型权重；如果不是 .onnx，需要先转换为 PhotoCuller 支持的 ONNX 图片评分模型。">
+                            <InfoBar.ActionButton>
+                                <Button Content="查看推荐模型"
+                                        Click="RecommendedModels_Click"/>
+                            </InfoBar.ActionButton>
+                        </InfoBar>
+
                         <TextBlock Text="本地模型路径" FontSize="12" Opacity="0.5"/>
                         <Grid ColumnSpacing="8">
                             <Grid.ColumnDefinitions>
@@ -236,7 +247,7 @@
                             <ComboBoxItem Content="1–10 AVA 美学分" Tag="clip-aesthetic-1-10"/>
                         </ComboBox>
                         <TextBlock FontSize="11" Opacity="0.5" TextWrapping="Wrap"
-                                   Text="模型需接受 NCHW/NHWC RGB float 张量；应用会使用 CLIP 均值与标准差预处理。"/>
+                                   Text="当前 C# 本地推理仅支持 .onnx。模型需接受 NCHW/NHWC RGB float 张量并输出单个分数；应用会使用 CLIP 均值与标准差预处理。"/>
                     </StackPanel>
 
                     <!-- CLOUD model fields -->
