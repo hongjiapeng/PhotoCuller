@@ -232,14 +232,27 @@ public sealed partial class MainViewModel : ObservableObject
         if (photo is null) return;
 
         var group = FindGroupForPhoto(photo);
-        if (group is not null && group != SelectedGroup)
+        if (group is null) return;
+
+        // The algorithm recommendation is already fixed in the left panel.
+        // Clicking its green filmstrip card must not advance the blue
+        // comparison selection to the following photo.
+        if (group.RecommendedPhoto?.Id == photo.Id)
+            return;
+
+        // Clicking the already selected comparison photo is idempotent.
+        if (ComparePhoto?.Id == photo.Id)
+        {
+            SelectedPhoto = photo;
+            return;
+        }
+
+        if (group != SelectedGroup)
             SelectedGroup = group;
 
         EnsureRecommendedAndCandidate();
 
-        ComparePhoto = photo == RecommendedPhoto
-            ? GetNextPhotoInGroup(RecommendedPhoto, skipRecommended: true)
-            : photo;
+        ComparePhoto = photo;
 
         InspectPhoto = ComparePhoto;
         SelectedPhoto = ComparePhoto;
