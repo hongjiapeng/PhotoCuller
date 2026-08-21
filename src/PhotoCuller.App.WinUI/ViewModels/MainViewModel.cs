@@ -457,11 +457,32 @@ public sealed partial class MainViewModel : ObservableObject
     {
         foreach (var photo in AllPhotos)
         {
+            var isAlgorithmRecommended = Groups.Any(group =>
+                group.Model.RecommendedPhotoId == photo.Id);
+            photo.IsAlgorithmRecommended = isAlgorithmRecommended;
             photo.IsRecommendedInSelectedGroup =
                 SelectedGroup is not null && photo.Id == SelectedGroup.Model.RecommendedPhotoId;
             photo.IsCurrentComparePhoto = ComparePhoto is not null && photo.Id == ComparePhoto.Id;
             photo.IsCurrentInspectPhoto = InspectPhoto is not null && photo.Id == InspectPhoto.Id;
+            photo.IsCurrentBrowseAlternative =
+                SelectedPhoto is not null
+                && photo.Id == SelectedPhoto.Id
+                && !isAlgorithmRecommended;
         }
+    }
+
+    private void EnsureDefaultPhotoSelection()
+    {
+        var hasValidGroup = SelectedGroup is not null && Groups.Contains(SelectedGroup);
+        if (!hasValidGroup)
+        {
+            SelectedGroup = Groups.FirstOrDefault();
+            SelectedPhoto = SelectedGroup?.RecommendedPhoto;
+            return;
+        }
+
+        if (SelectedPhoto is null || SelectedGroup?.Photos.Contains(SelectedPhoto) != true)
+            SelectedPhoto = SelectedGroup?.RecommendedPhoto;
     }
 
     partial void OnCurrentViewModeChanged(SimilarGroupViewMode value)
@@ -479,6 +500,9 @@ public sealed partial class MainViewModel : ObservableObject
     }
 
     partial void OnRecommendedPhotoChanged(PhotoItemViewModel? value)
+        => UpdatePhotoSelectionFlags();
+
+    partial void OnSelectedPhotoChanged(PhotoItemViewModel? value)
         => UpdatePhotoSelectionFlags();
 
     partial void OnComparePhotoChanged(PhotoItemViewModel? value)
@@ -550,6 +574,9 @@ public sealed partial class MainViewModel : ObservableObject
                     ? list : [];
                 Groups.Add(new PhotoGroupViewModel(group, vmList));
             }
+
+            EnsureDefaultPhotoSelection();
+            UpdatePhotoSelectionFlags();
 
             TotalPhotoCount = dbPhotos.Count;
             GroupCount      = dbGroups.Count;
@@ -728,6 +755,9 @@ public sealed partial class MainViewModel : ObservableObject
                     .OfType<PhotoItemViewModel>();
                 Groups.Add(new PhotoGroupViewModel(group, memberVms));
             }
+
+            EnsureDefaultPhotoSelection();
+            UpdatePhotoSelectionFlags();
 
             GroupCount   = photoGroups.Count;
             LastScanTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm");

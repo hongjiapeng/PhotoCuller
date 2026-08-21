@@ -69,9 +69,11 @@ public sealed partial class PhotoItemViewModel : ObservableObject
         : "—";
 
 #pragma warning disable MVVMTK0045
+    [ObservableProperty] private bool _isAlgorithmRecommended;
     [ObservableProperty] private bool _isRecommendedInSelectedGroup;
     [ObservableProperty] private bool _isCurrentComparePhoto;
     [ObservableProperty] private bool _isCurrentInspectPhoto;
+    [ObservableProperty] private bool _isCurrentBrowseAlternative;
 #pragma warning restore MVVMTK0045
 
     private static string FormatSize(long bytes) => bytes switch
