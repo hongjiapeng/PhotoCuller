@@ -517,27 +517,29 @@ public sealed partial class MainViewModel : ObservableObject
         try
         {
             var dbGroups = await _groupRepo.GetAllAsync(ct);
-            if (dbGroups.Count == 0) return;
+            var dbPhotos = await _photoRepo.GetAllAsync(ct);
 
             AllPhotos.Clear();
             Groups.Clear();
 
-            // Single query for all grouped photos, then group in memory
-            // (avoids N+1: one GetByGroupAsync call per group)
-            var allGroupIds = dbGroups.Select(g => g.Id).ToHashSet();
+            // Load every photo, including ungrouped photos, into the library.
+            // Groups are rebuilt from the same in-memory set so the library
+            // count and the group contents cannot diverge after app restart.
+            var photoVmMap = dbPhotos
+                .Select(p => new PhotoItemViewModel(p))
+                .ToDictionary(vm => vm.Id);
 
-            // Load all photos that belong to any group in one pass per group
-            // Use a dictionary for O(1) group lookup
-            var groupMap = dbGroups.ToDictionary(g => g.Id);
+            foreach (var photo in dbPhotos)
+                AllPhotos.Add(photoVmMap[photo.Id]);
+
             var photosByGroup = new Dictionary<Guid, List<PhotoItemViewModel>>();
 
             foreach (var group in dbGroups)
             {
-                var photos = await _photoRepo.GetByGroupAsync(group.Id, ct);
-                var vmList = photos.Select(p => new PhotoItemViewModel(p)).ToList();
-
-                foreach (var vm in vmList)
-                    AllPhotos.Add(vm);
+                var vmList = dbPhotos
+                    .Where(p => p.GroupId == group.Id)
+                    .Select(p => photoVmMap[p.Id])
+                    .ToList();
 
                 photosByGroup[group.Id] = vmList;
             }
@@ -549,7 +551,7 @@ public sealed partial class MainViewModel : ObservableObject
                 Groups.Add(new PhotoGroupViewModel(group, vmList));
             }
 
-            TotalPhotoCount = await _photoRepo.GetTotalCountAsync(ct);
+            TotalPhotoCount = dbPhotos.Count;
             GroupCount      = dbGroups.Count;
             PendingCount    = AllPhotos.Count(vm =>
                 vm.Status == RecommendationStatus.Review);

@@ -24,6 +24,11 @@ public sealed class PhotoRepository : IPhotoRepository
     public async Task<PhotoItem?> GetByPathAsync(string filePath, CancellationToken ct = default)
         => await _db.Photos.FirstOrDefaultAsync(p => p.FilePath == filePath, ct);
 
+    public async Task<IReadOnlyList<PhotoItem>> GetAllAsync(CancellationToken ct = default)
+        => await _db.Photos
+            .OrderBy(p => p.FileName)
+            .ToListAsync(ct);
+
     public async Task<IReadOnlyList<PhotoItem>> GetPagedAsync(
         int skip, int take, CancellationToken ct = default)
         => await _db.Photos

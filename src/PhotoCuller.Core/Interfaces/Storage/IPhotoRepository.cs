@@ -8,6 +8,9 @@ public interface IPhotoRepository
     Task<PhotoItem?> GetByIdAsync(Guid id, CancellationToken ct = default);
     Task<PhotoItem?> GetByPathAsync(string filePath, CancellationToken ct = default);
 
+    /// <summary>Returns all persisted photos, including photos without a similar group.</summary>
+    Task<IReadOnlyList<PhotoItem>> GetAllAsync(CancellationToken ct = default);
+
     /// <summary>Returns a paged list of photos (used for virtualized scrolling).</summary>
     Task<IReadOnlyList<PhotoItem>> GetPagedAsync(
         int skip, int take,
