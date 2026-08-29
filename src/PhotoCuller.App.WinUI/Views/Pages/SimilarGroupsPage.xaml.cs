@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
@@ -6,6 +7,9 @@ using Microsoft.UI.Xaml.Media.Imaging;
 using Microsoft.UI.Xaml.Navigation;
 using PhotoCuller.App.WinUI.ViewModels;
 using PhotoCuller.Core.Enums;
+using PhotoCuller.Core.Interfaces.Platform;
+using System.Globalization;
+using System.Text;
 using Windows.System;
 
 namespace PhotoCuller.App.WinUI.Views.Pages;
@@ -279,9 +283,104 @@ public sealed partial class SimilarGroupsPage : Page
             await _vm.MoveMarkedToTrashCommand.ExecuteAsync(null);
     }
 
-    private void ExportReport_Click(object sender, RoutedEventArgs e)
+    private async void ExportReport_Click(object sender, RoutedEventArgs e)
     {
-        // TODO Stage 15: generate export report
+        if (_vm is null) return;
+
+        if (_vm.Groups.Count == 0)
+        {
+            App.Services.GetRequiredService<INotificationService>()
+                .ShowWarning("当前没有可导出的相似照片组。");
+            return;
+        }
+
+        try
+        {
+            var fileDialog = App.Services.GetRequiredService<IFileDialogService>();
+            var suggestedName = $"PhotoCuller_相似照片报告_{DateTime.Now:yyyyMMdd_HHmmss}";
+            var path = await fileDialog.PickSaveFileAsync(suggestedName, ".csv");
+            if (string.IsNullOrWhiteSpace(path))
+                return;
+
+            var report = BuildCsvReport(_vm.Groups);
+            await File.WriteAllTextAsync(
+                path,
+                report,
+                new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
+
+            App.Services.GetRequiredService<INotificationService>()
+                .ShowSuccess($"报告已导出：{Path.GetFileName(path)}");
+        }
+        catch (Exception ex)
+        {
+            App.Services.GetRequiredService<INotificationService>()
+                .ShowError($"导出报告失败：{ex.Message}");
+        }
+    }
+
+    private static string BuildCsvReport(IEnumerable<PhotoGroupViewModel> groups)
+    {
+        var csv = new StringBuilder();
+        AppendCsvRow(csv,
+            "组序号", "组ID", "分组类型", "组名", "照片数量", "组相似度",
+            "组内推荐", "照片文件名", "照片路径", "照片评分", "当前状态",
+            "已移入待删除", "拍摄时间", "修改时间", "宽度", "高度", "文件大小(bytes)");
+
+        var groupIndex = 0;
+        foreach (var group in groups)
+        {
+            groupIndex++;
+            var recommendedId = group.RecommendedPhoto?.Id;
+
+            foreach (var photo in group.Photos)
+            {
+                AppendCsvRow(csv,
+                    groupIndex,
+                    group.Id,
+                    group.GroupTypeLabel,
+                    group.Name,
+                    group.PhotoCount,
+                    group.Model.SimilarityScore.ToString("P1", CultureInfo.InvariantCulture),
+                    photo.Id == recommendedId ? "是" : "否",
+                    photo.FileName,
+                    photo.FilePath,
+                    photo.OverallScore?.ToString("0.##", CultureInfo.InvariantCulture),
+                    GetStatusLabel(photo.Status),
+                    photo.IsMovedToTrash ? "是" : "否",
+                    photo.Model.ExifTakenTime?.ToString("yyyy-MM-dd HH:mm:ss"),
+                    photo.Model.ModifiedTime?.ToString("yyyy-MM-dd HH:mm:ss"),
+                    photo.Width,
+                    photo.Height,
+                    photo.FileSize);
+            }
+        }
+
+        return csv.ToString();
+    }
+
+    private static string GetStatusLabel(RecommendationStatus status) => status switch
+    {
+        RecommendationStatus.Keep or RecommendationStatus.ManualKeep => "保留",
+        RecommendationStatus.Review => "待确认",
+        RecommendationStatus.ToDelete or RecommendationStatus.ManualDelete => "待删除",
+        _ => "未处理",
+    };
+
+    private static void AppendCsvRow(StringBuilder csv, params object?[] values)
+        => csv.AppendLine(string.Join(",", values.Select(ToCsvField)));
+
+    private static string ToCsvField(object? value)
+    {
+        var text = value switch
+        {
+            null => string.Empty,
+            IFormattable formattable => formattable.ToString(null, CultureInfo.InvariantCulture) ?? string.Empty,
+            _ => value.ToString() ?? string.Empty,
+        };
+
+        return text.IndexOfAny([',', '"', '\r', '\n']) >= 0
+            ? $"\"{text.Replace("\"", "\"\"")}\""
+            : text;
     }
 
     private void Root_KeyDown(object sender, KeyRoutedEventArgs e)

@@ -6,6 +6,9 @@ public interface IFileDialogService
     /// <summary>Shows a folder picker dialog; returns the selected path, or null if cancelled.</summary>
     Task<string?> PickFolderAsync();
 
+    /// <summary>Shows a save-file dialog; returns the selected path, or null if cancelled.</summary>
+    Task<string?> PickSaveFileAsync(string suggestedFileName, string extension = ".csv");
+
     /// <summary>Shows a file picker dialog; returns the list of selected file paths.</summary>
     Task<IReadOnlyList<string>> PickFilesAsync(
         string? filter = null,

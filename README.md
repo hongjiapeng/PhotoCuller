@@ -266,7 +266,7 @@ PhotoCuller/
 - [ ] Real noise analyzer (wavelet-based)
 - [ ] Composition analyzer (SAMP-Net)
 - [ ] Cloud AI photo descriptions via configured model
-- [ ] Export report (CSV/JSON)
+- [x] Export report (CSV)
 - [ ] RAW format support (CR2, NEF, ARW, …)
 
 ---

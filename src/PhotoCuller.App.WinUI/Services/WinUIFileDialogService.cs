@@ -25,6 +25,31 @@ public sealed class WinUIFileDialogService : IFileDialogService
         return folder?.Path;
     }
 
+    public async Task<string?> PickSaveFileAsync(
+        string suggestedFileName, string extension = ".csv")
+    {
+        var picker = new FileSavePicker
+        {
+            SuggestedStartLocation = PickerLocationId.PicturesLibrary,
+            SuggestedFileName = suggestedFileName,
+        };
+
+        var normalizedExtension = extension.StartsWith('.')
+            ? extension
+            : $".{extension}";
+        picker.FileTypeChoices.Add(
+            normalizedExtension.Equals(".csv", StringComparison.OrdinalIgnoreCase)
+                ? "CSV 文件"
+                : "文件",
+            [normalizedExtension]);
+
+        var hwnd = WindowNative.GetWindowHandle(_getWindow());
+        InitializeWithWindow.Initialize(picker, hwnd);
+
+        var file = await picker.PickSaveFileAsync();
+        return file?.Path;
+    }
+
     public async Task<IReadOnlyList<string>> PickFilesAsync(
         string? filter = null, bool multiSelect = false)
     {
