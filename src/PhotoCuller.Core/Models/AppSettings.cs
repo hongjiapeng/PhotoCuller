@@ -40,19 +40,22 @@ public class AppSettings
     public ScoringWeights ScoringWeights { get; set; } = ScoringWeights.Default;
 
     // ── Similar photos ───────────────────────────────────────────────
-    /// <summary>pHash high-similarity threshold (Hamming distance ≤ this value is considered highly similar).</summary>
-    public int SimilarityThresholdHigh { get; set; } = 8;
+    /// <summary>Advanced override for photos outside the same capture sequence.</summary>
+    public int SimilarityThresholdHigh { get; set; } = 12;
 
-    /// <summary>pHash possible-similarity threshold (Hamming distance ≤ this value is considered possibly similar).</summary>
-    public int SimilarityThresholdPossible { get; set; } = 15;
+    /// <summary>Advanced override for nearby, sequential captures.</summary>
+    public int SimilarityThresholdPossible { get; set; } = 32;
 
     /// <summary>Preset used for similar-photo grouping. Normal is conservative for 64-bit pHash.</summary>
     public SimilarityPreset SimilarityPreset { get; set; } = SimilarityPreset.Normal;
 
     /// <summary>Burst-shot time window in seconds.</summary>
-    public int BurstTimeWindowSeconds { get; set; } = 10;
+    public int BurstTimeWindowSeconds { get; set; } = 120;
 
     public bool UseCaptureTimeForGrouping { get; set; } = true;
+
+    /// <summary>Whether the advanced numeric overrides replace the selected preset.</summary>
+    public bool UseAdvancedSimilaritySettings { get; set; }
 
     // ── File management ──────────────────────────────────────────────
     public string ToDeleteFolderName { get; set; } = "PhotoCuller_ToDelete";

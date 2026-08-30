@@ -20,6 +20,7 @@ public sealed class SimilarityServiceTests
         {
             SimilarityThresholdHigh     = 8,
             SimilarityThresholdPossible = 15,
+            UseAdvancedSimilaritySettings = true,
         });
         _sut = new SimilarityService(opts, _pHash);
     }

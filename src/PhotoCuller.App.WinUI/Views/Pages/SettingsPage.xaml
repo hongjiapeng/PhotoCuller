@@ -26,7 +26,7 @@
         <!-- Sub-description style -->
         <Style x:Key="RowDesc" TargetType="TextBlock">
             <Setter Property="FontSize" Value="11"/>
-            <Setter Property="Opacity"  Value="0.5"/>
+            <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
         </Style>
     </Page.Resources>
 
@@ -209,46 +209,124 @@
 
                 <!-- ── SIMILAR ─────────────────────────────────────────── -->
                 <TextBlock Style="{StaticResource SectionHeader}" Text="相似照片设置"/>
-                <StackPanel Spacing="10">
-                    <Grid>
-                        <Grid.ColumnDefinitions><ColumnDefinition Width="180"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                        <StackPanel><TextBlock Style="{StaticResource RowLabel}" Text="相似度预设"/>
-                        <TextBlock Style="{StaticResource RowDesc}" Text="Strict 更保守，Loose 适合压缩或改尺寸版本"/></StackPanel>
-                        <ComboBox Grid.Column="1"
-                                  SelectedValue="{x:Bind ViewModel.SimilarityPresetValue, Mode=TwoWay}"
-                                  SelectedValuePath="Tag">
-                            <ComboBoxItem Content="Strict" Tag="Strict"/>
-                            <ComboBoxItem Content="Normal" Tag="Normal"/>
-                            <ComboBoxItem Content="Loose" Tag="Loose"/>
-                        </ComboBox>
-                    </Grid>
-                    <Grid>
-                        <Grid.ColumnDefinitions><ColumnDefinition Width="180"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                        <StackPanel><TextBlock Style="{StaticResource RowLabel}" Text="高度相似阈值"/>
-                        <TextBlock Style="{StaticResource RowDesc}" Text="汉明距离 ≤ 此值视为高度相似"/></StackPanel>
-                        <NumberBox Grid.Column="1" Minimum="1" Maximum="30" SpinButtonPlacementMode="Compact"
-                                   Value="{x:Bind ViewModel.SimilarityThresholdHigh, Mode=TwoWay}"/>
-                    </Grid>
-                    <Grid>
-                        <Grid.ColumnDefinitions><ColumnDefinition Width="180"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                        <StackPanel><TextBlock Style="{StaticResource RowLabel}" Text="可能相似阈值"/>
-                        <TextBlock Style="{StaticResource RowDesc}" Text="汉明距离 ≤ 此值视为可能相似"/></StackPanel>
-                        <NumberBox Grid.Column="1" Minimum="1" Maximum="64" SpinButtonPlacementMode="Compact"
-                                   Value="{x:Bind ViewModel.SimilarityThresholdPossible, Mode=TwoWay}"/>
-                    </Grid>
-                    <Grid>
-                        <Grid.ColumnDefinitions><ColumnDefinition Width="180"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                        <StackPanel><TextBlock Style="{StaticResource RowLabel}" Text="连拍时间窗口（秒）"/>
-                        <TextBlock Style="{StaticResource RowDesc}" Text="拍摄间隔在此时间内视为连拍"/></StackPanel>
-                        <NumberBox Grid.Column="1" Minimum="1" Maximum="300" SpinButtonPlacementMode="Compact"
-                                   Value="{x:Bind ViewModel.BurstTimeWindowSeconds, Mode=TwoWay}"/>
-                    </Grid>
+                <StackPanel Spacing="12">
+                    <RadioButtons AutomationProperties.AutomationId="SimilaritySearchEffort"
+                                  Header="查找力度"
+                                  SelectedIndex="{x:Bind ViewModel.SimilarityPresetIndex, Mode=TwoWay}">
+                        <RadioButton AutomationProperties.Name="精准，误分最少"
+                                     HorizontalContentAlignment="Stretch">
+                            <StackPanel Spacing="4">
+                                <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="精准"/>
+                                <TextBlock Style="{StaticResource CaptionTextBlockStyle}"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                           Text="只找画面非常接近的照片，结果较少"
+                                           TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </RadioButton>
+                        <RadioButton AutomationProperties.Name="平衡，推荐"
+                                     HorizontalContentAlignment="Stretch">
+                            <StackPanel Spacing="4">
+                                <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="平衡（推荐）"/>
+                                <TextBlock Style="{StaticResource CaptionTextBlockStyle}"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                           Text="兼顾准确度，并识别连续拍摄中的构图变化"
+                                           TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </RadioButton>
+                        <RadioButton AutomationProperties.Name="尽量多找，需要人工确认"
+                                     HorizontalContentAlignment="Stretch">
+                            <StackPanel Spacing="4">
+                                <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="尽量多找"/>
+                                <TextBlock Style="{StaticResource CaptionTextBlockStyle}"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                           Text="召回更多同场景照片，可能增加待确认结果"
+                                           TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </RadioButton>
+                    </RadioButtons>
+
+                    <InfoBar IsOpen="True"
+                             IsClosable="False"
+                             Severity="Informational"
+                             Message="{x:Bind ViewModel.SimilarityPresetSummary, Mode=OneWay}"/>
+
                     <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                        <StackPanel><TextBlock Text="使用拍摄时间辅助分组" FontSize="13"/>
-                        <TextBlock Style="{StaticResource RowDesc}" Text="结合 EXIF 拍摄时间识别连拍组"/></StackPanel>
-                        <ToggleSwitch Grid.Column="1" IsOn="{x:Bind ViewModel.UseCaptureTimeForGrouping, Mode=TwoWay}" OnContent="" OffContent=""/>
+                        <StackPanel>
+                            <TextBlock Text="识别连续拍摄"/>
+                            <TextBlock Style="{StaticResource RowDesc}" Text="结合拍摄时间和连续文件名，减少同一组被拆散"/>
+                        </StackPanel>
+                        <ToggleSwitch AutomationProperties.AutomationId="UseCaptureSequence"
+                                      Grid.Column="1"
+                                      IsOn="{x:Bind ViewModel.UseCaptureTimeForGrouping, Mode=TwoWay}"
+                                      OnContent=""
+                                      OffContent=""/>
                     </Grid>
+
+                    <Expander AutomationProperties.AutomationId="AdvancedSimilaritySettings"
+                              Header="高级设置（通常无需修改）">
+                        <StackPanel Spacing="12">
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock Text="覆盖推荐策略"/>
+                                    <TextBlock Style="{StaticResource RowDesc}" Text="开启后，下列数值将替代所选查找力度"/>
+                                </StackPanel>
+                                <ToggleSwitch AutomationProperties.AutomationId="UseAdvancedSimilarityOverrides"
+                                              Grid.Column="1"
+                                              IsOn="{x:Bind ViewModel.UseAdvancedSimilaritySettings, Mode=TwoWay}"
+                                              OnContent=""
+                                              OffContent=""/>
+                            </Grid>
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="180"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock Style="{StaticResource RowLabel}" Text="跨时段相似阈值"/>
+                                    <TextBlock Style="{StaticResource RowDesc}" Text="越大越容易把不同场景误判为相似"/>
+                                </StackPanel>
+                                <NumberBox AutomationProperties.AutomationId="GlobalSimilarityThreshold"
+                                           Grid.Column="1"
+                                           Minimum="1"
+                                           Maximum="24"
+                                           IsEnabled="{x:Bind ViewModel.UseAdvancedSimilaritySettings, Mode=OneWay}"
+                                           SpinButtonPlacementMode="Compact"
+                                           Value="{x:Bind ViewModel.SimilarityThresholdHigh, Mode=TwoWay}"/>
+                            </Grid>
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="180"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock Style="{StaticResource RowLabel}" Text="连续拍摄相似阈值"/>
+                                    <TextBlock Style="{StaticResource RowDesc}" Text="仅用于同目录、时间接近且文件名连续的照片"/>
+                                </StackPanel>
+                                <NumberBox AutomationProperties.AutomationId="SequenceSimilarityThreshold"
+                                           Grid.Column="1"
+                                           Minimum="1"
+                                           Maximum="40"
+                                           IsEnabled="{x:Bind ViewModel.UseAdvancedSimilaritySettings, Mode=OneWay}"
+                                           SpinButtonPlacementMode="Compact"
+                                           Value="{x:Bind ViewModel.SimilarityThresholdPossible, Mode=TwoWay}"/>
+                            </Grid>
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="180"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock Style="{StaticResource RowLabel}" Text="连续拍摄间隔（秒）"/>
+                                    <TextBlock Style="{StaticResource RowDesc}" Text="两张相邻照片允许的最大拍摄间隔"/>
+                                </StackPanel>
+                                <NumberBox AutomationProperties.AutomationId="SequenceTimeWindow"
+                                           Grid.Column="1"
+                                           Minimum="1"
+                                           Maximum="300"
+                                           IsEnabled="{x:Bind ViewModel.UseAdvancedSimilaritySettings, Mode=OneWay}"
+                                           SpinButtonPlacementMode="Compact"
+                                           Value="{x:Bind ViewModel.BurstTimeWindowSeconds, Mode=TwoWay}"/>
+                            </Grid>
+                        </StackPanel>
+                    </Expander>
+
+                    <TextBlock Style="{StaticResource CaptionTextBlockStyle}"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                               Text="保存后请重新扫描；现有分组不会自动改变。"
+                               TextWrapping="Wrap"/>
                 </StackPanel>
 
                 <!-- ── FILE MANAGEMENT ─────────────────────────────────── -->

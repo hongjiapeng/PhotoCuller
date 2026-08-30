@@ -10,21 +10,17 @@ namespace PhotoCuller.Infrastructure.Hashing;
 /// <summary>
 /// Builds PhotoGroup lists from a flat collection of PhotoItems.
 ///
-/// Three passes in order of priority:
+/// Two passes in order of priority:
 ///
 ///   Pass 1 — Exact duplicates (SHA-256)
 ///     Any photos sharing an identical hash → ExactDuplicate group.
 ///     Already-grouped photos are excluded from subsequent passes.
 ///
-///   Pass 2 — Burst shots (EXIF time window + pHash)
-///     Within the same directory, photos taken within BurstTimeWindowSeconds
-///     AND whose pHash Hamming distance ≤ SimilarityThresholdPossible are
-///     grouped as a Burst.
-///
-///   Pass 3 — Visually similar (pHash, Union-Find)
-///     All remaining ungrouped photos are indexed in a BK-tree.
-///     Union-Find merges any BK-tree match within the SimilarityPreset threshold.
-///     Groups with ≥ 2 members become Similar groups.
+///   Pass 2 — Visual groups (pHash + capture-sequence context)
+///     A strict global threshold finds near-duplicates across the library. A
+///     more tolerant threshold is used only for nearby, sequential filenames
+///     in the same directory. Both edge types are clustered in one graph so a
+///     burst cannot hide members from later similarity detection.
 ///
 /// After grouping, each group is assigned a recommended photo:
 ///   - If any member is ManualKeep → that one wins.
@@ -75,15 +71,10 @@ public sealed class DuplicateGroupingService : IDuplicateGroupingService
         ct.ThrowIfCancellationRequested();
         groups.AddRange(BuildExactDuplicateGroups(photos, grouped));
 
-        // Pass 2: burst shots
-        progress?.Report("Detecting burst shots...");
-        ct.ThrowIfCancellationRequested();
-        groups.AddRange(BuildBurstGroups(photos, grouped, settings, ct));
-
-        // Pass 3: similar photos (Union-Find)
+        // Pass 2: similar photos and capture sequences in one graph
         progress?.Report("Detecting similar photos...");
         ct.ThrowIfCancellationRequested();
-        groups.AddRange(BuildSimilarGroups(photos, grouped, settings, ct));
+        groups.AddRange(BuildVisualGroups(photos, grouped, settings, ct));
 
         // Assign recommended photo to each group
         foreach (var group in groups)
@@ -134,89 +125,9 @@ public sealed class DuplicateGroupingService : IDuplicateGroupingService
         }
     }
 
-    // ── Pass 2: Burst shots ──────────────────────────────────────────────────
+    // ── Pass 2: Similar photos and capture sequences ────────────────────────
 
-    private IEnumerable<PhotoGroup> BuildBurstGroups(
-        IReadOnlyList<PhotoItem> photos,
-        HashSet<Guid> grouped,
-        AppSettings settings,
-        CancellationToken ct)
-    {
-        if (!settings.UseCaptureTimeForGrouping)
-            yield break;
-
-        var windowSec = settings.BurstTimeWindowSeconds;
-        var threshold = SimilarityThresholds.FromSettings(settings);
-
-        // Only consider photos with capture time and pHash, not yet grouped
-        var candidates = photos
-            .Where(p => !grouped.Contains(p.Id)
-                     && p.PerceptualHash.HasValue
-                     && (p.ExifTakenTime ?? p.CreatedTime) is not null)
-            .OrderBy(p => p.ExifTakenTime ?? p.CreatedTime)
-            .ToList();
-
-        // Group by directory first (burst shots are in the same folder)
-        var byDir = candidates.GroupBy(p => Path.GetDirectoryName(p.FilePath) ?? "");
-
-        foreach (var dirGroup in byDir)
-        {
-            ct.ThrowIfCancellationRequested();
-
-            var sorted = dirGroup.OrderBy(p => p.ExifTakenTime ?? p.CreatedTime).ToList();
-            var visited = new HashSet<Guid>();
-
-            for (int i = 0; i < sorted.Count; i++)
-            {
-                if (visited.Contains(sorted[i].Id)) continue;
-
-                var burst = new List<PhotoItem> { sorted[i] };
-                var baseTime = (sorted[i].ExifTakenTime ?? sorted[i].CreatedTime)!.Value;
-
-                for (int j = i + 1; j < sorted.Count; j++)
-                {
-                    if (visited.Contains(sorted[j].Id)) continue;
-
-                    var t = (sorted[j].ExifTakenTime ?? sorted[j].CreatedTime)!.Value;
-                    if ((t - baseTime).TotalSeconds > windowSec) break;
-
-                    // Must also be visually similar
-                    if (sorted[i].PerceptualHash.HasValue && sorted[j].PerceptualHash.HasValue
-                        && _pHash.HammingDistance(
-                            sorted[i].PerceptualHash!.Value,
-                            sorted[j].PerceptualHash!.Value) <= threshold)
-                    {
-                        burst.Add(sorted[j]);
-                        visited.Add(sorted[j].Id);
-                    }
-                }
-
-                if (burst.Count < 2) continue;
-
-                visited.Add(sorted[i].Id);
-                var group = new PhotoGroup
-                {
-                    GroupType  = GroupType.Burst,
-                    Name       = $"Burst ({burst.Count} shots)",
-                    PhotoCount = burst.Count,
-                    SimilarityScore = 0.9f,
-                };
-
-                foreach (var photo in burst)
-                {
-                    photo.GroupId = group.Id;
-                    group.Photos.Add(photo);
-                    grouped.Add(photo.Id);
-                }
-
-                yield return group;
-            }
-        }
-    }
-
-    // ── Pass 3: Similar photos (Union-Find) ──────────────────────────────────
-
-    private IEnumerable<PhotoGroup> BuildSimilarGroups(
+    private IEnumerable<PhotoGroup> BuildVisualGroups(
         IReadOnlyList<PhotoItem> photos,
         HashSet<Guid> grouped,
         AppSettings settings,
@@ -228,7 +139,7 @@ public sealed class DuplicateGroupingService : IDuplicateGroupingService
 
         Log.PHashCandidates(_logger, candidates.Count, photos.Count);
 
-        var threshold = SimilarityThresholds.FromSettings(settings);
+        var profile = SimilarityThresholds.FromSettings(settings);
         if (candidates.Count < 2)
         {
             Log.SimilarHashSearch(_logger,
@@ -236,7 +147,7 @@ public sealed class DuplicateGroupingService : IDuplicateGroupingService
                 queryCount: 0,
                 similarPairs: 0,
                 groupCount: 0,
-                threshold);
+                profile.SearchThreshold);
             yield break;
         }
 
@@ -250,10 +161,19 @@ public sealed class DuplicateGroupingService : IDuplicateGroupingService
             ct.ThrowIfCancellationRequested();
             queryCount++;
 
-            foreach (var match in tree.Find(candidates[i].PerceptualHash!.Value, threshold))
+            foreach (var match in tree.Find(
+                         candidates[i].PerceptualHash!.Value,
+                         profile.SearchThreshold))
             {
-                uf.Union(i, match.Index);
-                similarPairs++;
+                var globallySimilar = match.Distance <= profile.GlobalThreshold;
+                var sameSequence = match.Distance <= profile.SequenceThreshold
+                    && IsCaptureSequencePair(candidates[i], candidates[match.Index], profile);
+
+                if (globallySimilar || sameSequence)
+                {
+                    uf.Union(i, match.Index);
+                    similarPairs++;
+                }
             }
 
             tree.Add(candidates[i].PerceptualHash!.Value, i);
@@ -270,6 +190,7 @@ public sealed class DuplicateGroupingService : IDuplicateGroupingService
         }
 
         var similarClusters = clusters.Values
+            .SelectMany(c => SplitIntoCoherentClusters(c, profile))
             .Where(c => c.Count >= 2)
             .ToList();
 
@@ -278,16 +199,20 @@ public sealed class DuplicateGroupingService : IDuplicateGroupingService
             queryCount,
             similarPairs,
             similarClusters.Count,
-            threshold);
+            profile.SearchThreshold);
 
         foreach (var cluster in similarClusters)
         {
+            var isCaptureSequence = IsCaptureSequenceCluster(cluster, profile);
+            var groupType = isCaptureSequence ? GroupType.Burst : GroupType.Similar;
             var group = new PhotoGroup
             {
-                GroupType       = GroupType.Similar,
-                Name            = $"Similar ({cluster.Count} photos)",
+                GroupType       = groupType,
+                Name            = isCaptureSequence
+                    ? $"Burst ({cluster.Count} shots)"
+                    : $"Similar ({cluster.Count} photos)",
                 PhotoCount      = cluster.Count,
-                SimilarityScore = 0.75f,
+                SimilarityScore = isCaptureSequence ? 0.9f : 0.75f,
             };
 
             foreach (var photo in cluster)
@@ -299,6 +224,135 @@ public sealed class DuplicateGroupingService : IDuplicateGroupingService
 
             yield return group;
         }
+    }
+
+    private bool IsCaptureSequenceCluster(
+        IReadOnlyList<PhotoItem> cluster,
+        SimilarityProfile profile)
+    {
+        if (!profile.UseCaptureSequence || cluster.Count < 2)
+            return false;
+
+        var sorted = cluster
+            .Where(p => GetCaptureTime(p).HasValue)
+            .OrderBy(GetCaptureTime)
+            .ToList();
+        if (sorted.Count != cluster.Count)
+            return false;
+
+        for (var i = 1; i < sorted.Count; i++)
+        {
+            if (!IsCaptureSequencePair(sorted[i - 1], sorted[i], profile))
+                return false;
+
+            var distance = _pHash.HammingDistance(
+                sorted[i - 1].PerceptualHash!.Value,
+                sorted[i].PerceptualHash!.Value);
+            if (distance > profile.SequenceThreshold)
+                return false;
+        }
+
+        return true;
+    }
+
+    private IEnumerable<List<PhotoItem>> SplitIntoCoherentClusters(
+        List<PhotoItem> connectedComponent,
+        SimilarityProfile profile)
+    {
+        if (connectedComponent.Count < 3)
+        {
+            yield return connectedComponent;
+            yield break;
+        }
+
+        var ordered = connectedComponent
+            .OrderBy(p => GetCaptureTime(p) ?? DateTime.MaxValue)
+            .ThenBy(p => p.FileName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var coherent = new List<List<PhotoItem>>();
+
+        foreach (var photo in ordered)
+        {
+            var target = coherent.FirstOrDefault(group =>
+                AreCompatible(group[0], photo, profile)
+                && AreCompatible(group[^1], photo, profile));
+
+            if (target is null)
+                coherent.Add([photo]);
+            else
+                target.Add(photo);
+        }
+
+        foreach (var cluster in coherent)
+            yield return cluster;
+    }
+
+    private bool AreCompatible(
+        PhotoItem a,
+        PhotoItem b,
+        SimilarityProfile profile)
+    {
+        var distance = _pHash.HammingDistance(
+            a.PerceptualHash!.Value,
+            b.PerceptualHash!.Value);
+        return distance <= profile.GlobalThreshold
+            || (distance <= profile.SequenceThreshold
+                && IsCaptureSequencePair(a, b, profile));
+    }
+
+    private static bool IsCaptureSequencePair(
+        PhotoItem a,
+        PhotoItem b,
+        SimilarityProfile profile)
+    {
+        if (!profile.UseCaptureSequence)
+            return false;
+
+        var directoryA = Path.GetDirectoryName(a.FilePath) ?? string.Empty;
+        var directoryB = Path.GetDirectoryName(b.FilePath) ?? string.Empty;
+        if (!string.Equals(directoryA, directoryB, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        var timeA = GetCaptureTime(a);
+        var timeB = GetCaptureTime(b);
+        if (!timeA.HasValue || !timeB.HasValue
+            || Math.Abs((timeA.Value - timeB.Value).TotalSeconds)
+                > profile.SequenceWindowSeconds)
+        {
+            return false;
+        }
+
+        var hasNumberA = TryGetSequenceNumber(a, out var prefixA, out var numberA);
+        var hasNumberB = TryGetSequenceNumber(b, out var prefixB, out var numberB);
+        if (!hasNumberA || !hasNumberB)
+            return true;
+
+        var numberGap = Math.Abs(numberA - numberB);
+        return string.Equals(prefixA, prefixB, StringComparison.OrdinalIgnoreCase)
+            && numberGap > 0
+            && numberGap <= profile.MaxSequenceNumberGap;
+    }
+
+    private static DateTime? GetCaptureTime(PhotoItem photo)
+        => photo.ExifTakenTime ?? photo.CreatedTime;
+
+    private static bool TryGetSequenceNumber(
+        PhotoItem photo,
+        out string prefix,
+        out long number)
+    {
+        var fileName = string.IsNullOrWhiteSpace(photo.FileName)
+            ? Path.GetFileName(photo.FilePath)
+            : photo.FileName;
+        var stem = Path.GetFileNameWithoutExtension(fileName);
+        var digitStart = stem.Length;
+        while (digitStart > 0 && char.IsAsciiDigit(stem[digitStart - 1]))
+            digitStart--;
+
+        prefix = stem[..digitStart];
+        number = 0;
+        return digitStart < stem.Length
+            && long.TryParse(stem.AsSpan(digitStart), out number);
     }
 
     // ── Recommendation strategy ──────────────────────────────────────────────

@@ -6,7 +6,7 @@ namespace PhotoCuller.Infrastructure.Hashing;
 
 /// <summary>
 /// Determines similarity between two photos using their pre-computed hashes.
-/// Thresholds are read from AppSettings so users can tune them in the Settings page.
+/// Thresholds are resolved from the selected user-facing search profile.
 /// </summary>
 public sealed class SimilarityService : ISimilarityService
 {
@@ -23,23 +23,25 @@ public sealed class SimilarityService : ISimilarityService
 
     /// <summary>
     /// Returns true when both photos have a PerceptualHash and their
-    /// Hamming distance is ≤ SimilarityThresholdHigh (default 8).
+    /// Hamming distance is within the profile's global threshold.
     /// </summary>
     public bool IsHighlySimilar(PhotoItem a, PhotoItem b)
     {
         if (a.PerceptualHash is null || b.PerceptualHash is null) return false;
+        var profile = SimilarityThresholds.FromSettings(_settings);
         return _pHash.HammingDistance(a.PerceptualHash.Value, b.PerceptualHash.Value)
-               <= _settings.SimilarityThresholdHigh;
+               <= profile.GlobalThreshold;
     }
 
     /// <summary>
-    /// Returns true when Hamming distance ≤ SimilarityThresholdPossible (default 15).
+    /// Returns true when Hamming distance is within the profile's sequence threshold.
     /// </summary>
     public bool IsPossiblySimilar(PhotoItem a, PhotoItem b)
     {
         if (a.PerceptualHash is null || b.PerceptualHash is null) return false;
+        var profile = SimilarityThresholds.FromSettings(_settings);
         return _pHash.HammingDistance(a.PerceptualHash.Value, b.PerceptualHash.Value)
-               <= _settings.SimilarityThresholdPossible;
+               <= profile.SequenceThreshold;
     }
 
     /// <summary>

@@ -115,23 +115,17 @@ the model contributes “does this look pleasing?” signal.
 
 ### 🧭 Similar-Photo Tuning Guide
 
-After changing values in **Settings → Similar Photo Settings**, click **Save Settings** and run a new scan. Existing groups are not updated retroactively.
+Choose a search effort in **Settings → Similar Photo Settings**, click **Save Settings**, and run a new scan. Existing groups are not updated retroactively.
 
-| Goal | Similarity Preset | High Threshold | Possible Threshold | Burst Time Window |
-|------|-------------------|----------------|--------------------|-------------------|
-| Conservative, fewer false groups | Strict or Normal | 6–8 | 12–13 | 10s |
-| Recommended default | Normal | 8 | 15 | 10s |
-| More aggressive, find more groups | Loose | 8 | 18–19 | 20–30s |
-| Very aggressive, best with manual review | Loose | 10 | 22 | 30s |
+| Search effort | Best for |
+|---------------|----------|
+| Precise | Finds only very close frames and minimizes false groups |
+| Balanced (recommended) | Balances accuracy with recognition of nearby sequential captures |
+| Find more | Recalls larger composition changes and is best with per-group review |
 
-How the thresholds are used:
+Photos captured far apart use a strict visual threshold. A more tolerant threshold is used only when photos share a directory, have nearby capture times, and use sequential filenames. Burst and ordinary similarity edges are clustered together so one capture sequence is not split into several small groups.
 
-- **Strict** uses the High Threshold.
-- **Normal** uses the Possible Threshold.
-- **Loose** uses Possible Threshold + 3 to catch more compressed, resized, or slightly reframed variants.
-- pHash/dHash results are cached; changing thresholds does not require recomputing hashes, but it does require a new scan to rebuild groups.
-
-Start with `Normal / 8 / 15`. If too few groups are found, try `Loose / 8 / 18`; if unrelated scenes start grouping together, step back to `Normal / 7 / 13`.
+Advanced settings can still override the global threshold, capture-sequence threshold, and time window. Most users should leave them off. Perceptual hashes remain cached, but a new scan is required to rebuild groups.
 
 ---
 

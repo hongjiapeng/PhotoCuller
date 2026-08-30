@@ -1,8 +1,7 @@
 namespace PhotoCuller.Core.Enums;
 
 /// <summary>
-/// Similar-image matching presets for 64-bit perceptual hashes.
-/// Lower thresholds are stricter and reduce unrelated-scene false positives.
+/// User-facing search effort. Each value maps to a complete grouping profile.
 /// </summary>
 public enum SimilarityPreset
 {

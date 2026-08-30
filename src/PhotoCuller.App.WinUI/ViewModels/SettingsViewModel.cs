@@ -93,11 +93,12 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private int _aestheticBlendPercent = 25;
 
     // ── Similar ───────────────────────────────────────────────────────────────
-    [ObservableProperty] private int  _similarityThresholdHigh     = 8;
-    [ObservableProperty] private int  _similarityThresholdPossible = 15;
-    [ObservableProperty] private string _similarityPresetValue = SimilarityPreset.Normal.ToString();
-    [ObservableProperty] private int  _burstTimeWindowSeconds       = 10;
+    [ObservableProperty] private int  _similarityThresholdHigh     = 12;
+    [ObservableProperty] private int  _similarityThresholdPossible = 32;
+    [ObservableProperty] private int  _similarityPresetIndex        = (int)SimilarityPreset.Normal;
+    [ObservableProperty] private int  _burstTimeWindowSeconds       = 120;
     [ObservableProperty] private bool _useCaptureTimeForGrouping    = true;
+    [ObservableProperty] private bool _useAdvancedSimilaritySettings;
 
     // ── File management ───────────────────────────────────────────────────────
     [ObservableProperty] private string _toDeleteFolderName     = "PhotoCuller_ToDelete";
@@ -132,6 +133,13 @@ public sealed partial class SettingsViewModel : ObservableObject
         ? "✓ 总计 100"
         : $"⚠ 总计 {WeightTotal}（需等于 100）";
 
+    public string SimilarityPresetSummary => SimilarityPresetIndex switch
+    {
+        (int)SimilarityPreset.Strict => "只找非常接近的画面，误分最少，可能漏掉构图变化较大的连拍。",
+        (int)SimilarityPreset.Loose => "尽量找出更多同场景照片，适合愿意逐组确认的用户。",
+        _ => "兼顾数量和准确度；会对时间接近、文件名连续的照片适度放宽判断。",
+    };
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private void RefreshFromSettings()
@@ -160,9 +168,10 @@ public sealed partial class SettingsViewModel : ObservableObject
 
         SimilarityThresholdHigh     = _settings.SimilarityThresholdHigh;
         SimilarityThresholdPossible = _settings.SimilarityThresholdPossible;
-        SimilarityPresetValue       = _settings.SimilarityPreset.ToString();
+        SimilarityPresetIndex       = (int)_settings.SimilarityPreset;
         BurstTimeWindowSeconds      = _settings.BurstTimeWindowSeconds;
         UseCaptureTimeForGrouping   = _settings.UseCaptureTimeForGrouping;
+        UseAdvancedSimilaritySettings = _settings.UseAdvancedSimilaritySettings;
 
         ToDeleteFolderName      = _settings.ToDeleteFolderName;
         PreserveFolderStructure = _settings.PreserveFolderStructure;
@@ -214,14 +223,13 @@ public sealed partial class SettingsViewModel : ObservableObject
 
         _settings.SimilarityThresholdHigh     = SimilarityThresholdHigh;
         _settings.SimilarityThresholdPossible = SimilarityThresholdPossible;
-        _settings.SimilarityPreset = Enum.TryParse<SimilarityPreset>(
-            SimilarityPresetValue,
-            ignoreCase: true,
-            out var preset)
-            ? preset
+        _settings.SimilarityPreset = Enum.IsDefined(
+            typeof(SimilarityPreset), SimilarityPresetIndex)
+            ? (SimilarityPreset)SimilarityPresetIndex
             : SimilarityPreset.Normal;
         _settings.BurstTimeWindowSeconds      = BurstTimeWindowSeconds;
         _settings.UseCaptureTimeForGrouping   = UseCaptureTimeForGrouping;
+        _settings.UseAdvancedSimilaritySettings = UseAdvancedSimilaritySettings;
 
         _settings.ToDeleteFolderName      = ToDeleteFolderName;
         _settings.PreserveFolderStructure = PreserveFolderStructure;
@@ -248,6 +256,8 @@ public sealed partial class SettingsViewModel : ObservableObject
     partial void OnResolutionPercentChanged(int value)  => NotifyWeights();
     partial void OnCompositionPercentChanged(int value) => NotifyWeights();
     partial void OnColorPercentChanged(int value)       => NotifyWeights();
+    partial void OnSimilarityPresetIndexChanged(int value)
+        => OnPropertyChanged(nameof(SimilarityPresetSummary));
 
     private void NotifyWeights()
     {
