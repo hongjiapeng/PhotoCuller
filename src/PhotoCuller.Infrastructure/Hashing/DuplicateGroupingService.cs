@@ -16,11 +16,12 @@ namespace PhotoCuller.Infrastructure.Hashing;
 ///     Any photos sharing an identical hash → ExactDuplicate group.
 ///     Already-grouped photos are excluded from subsequent passes.
 ///
-///   Pass 2 — Visual groups (pHash + capture-sequence context)
+///   Pass 2 — Visual groups (pHash + dHash + capture-sequence context)
 ///     A strict global threshold finds near-duplicates across the library. A
-///     more tolerant threshold is used only for nearby, sequential filenames
-///     in the same directory. Both edge types are clustered in one graph so a
-///     burst cannot hide members from later similarity detection.
+///     more tolerant threshold is used only when both perceptual hashes agree
+///     for adjacent filenames in the same directory. Both edge types are
+///     clustered in one graph so a burst cannot hide members from later
+///     similarity detection.
 ///
 /// After grouping, each group is assigned a recommended photo:
 ///   - If any member is ManualKeep → that one wins.
@@ -43,19 +44,19 @@ public sealed class DuplicateGroupingService : IDuplicateGroupingService
         _logger = logger;
     }
 
-    public Task<IReadOnlyList<PhotoGroup>> BuildGroupsAsync(
+    public async Task<IReadOnlyList<PhotoGroup>> BuildGroupsAsync(
         IReadOnlyList<PhotoItem> photos,
         IProgress<string>? progress = null,
-        CancellationToken ct = default) =>
-        Task.Run(async () =>
-        {
-            var settings = await _settingsRepository.LoadAsync(ct);
-            return BuildGroups(photos, settings, progress, ct);
-        }, ct);
+        CancellationToken ct = default)
+    {
+        var settings = await _settingsRepository.LoadAsync(ct);
+        return await Task.Run(
+            () => BuildGroupsCoreAsync(photos, settings, progress, ct), ct);
+    }
 
     // ── Core algorithm ───────────────────────────────────────────────────────
 
-    private IReadOnlyList<PhotoGroup> BuildGroups(
+    private async Task<IReadOnlyList<PhotoGroup>> BuildGroupsCoreAsync(
         IReadOnlyList<PhotoItem> photos,
         AppSettings settings,
         IProgress<string>? progress,
@@ -74,7 +75,7 @@ public sealed class DuplicateGroupingService : IDuplicateGroupingService
         // Pass 2: similar photos and capture sequences in one graph
         progress?.Report("Detecting similar photos...");
         ct.ThrowIfCancellationRequested();
-        groups.AddRange(BuildVisualGroups(photos, grouped, settings, ct));
+        groups.AddRange(await BuildVisualGroupsAsync(photos, grouped, settings, ct));
 
         // Assign recommended photo to each group
         foreach (var group in groups)
@@ -127,7 +128,7 @@ public sealed class DuplicateGroupingService : IDuplicateGroupingService
 
     // ── Pass 2: Similar photos and capture sequences ────────────────────────
 
-    private IEnumerable<PhotoGroup> BuildVisualGroups(
+    private async Task<IReadOnlyList<PhotoGroup>> BuildVisualGroupsAsync(
         IReadOnlyList<PhotoItem> photos,
         HashSet<Guid> grouped,
         AppSettings settings,
@@ -148,8 +149,12 @@ public sealed class DuplicateGroupingService : IDuplicateGroupingService
                 similarPairs: 0,
                 groupCount: 0,
                 profile.SearchThreshold);
-            yield break;
+            return [];
         }
+
+        // pHash captures broad structure well; dHash rejects subject changes
+        // that happen to share a similar low-frequency composition.
+        var differenceHashes = await LoadDifferenceHashesAsync(candidates, ct);
 
         var uf = new UnionFind(candidates.Count);
         var tree = new HammingBkTree(_pHash.HammingDistance);
@@ -165,9 +170,18 @@ public sealed class DuplicateGroupingService : IDuplicateGroupingService
                          candidates[i].PerceptualHash!.Value,
                          profile.SearchThreshold))
             {
-                var globallySimilar = match.Distance <= profile.GlobalThreshold;
-                var sameSequence = match.Distance <= profile.SequenceThreshold
-                    && IsCaptureSequencePair(candidates[i], candidates[match.Index], profile);
+                var globallySimilar = match.Distance <= profile.GlobalThreshold
+                    && DifferenceHashesMatch(
+                        candidates[i],
+                        candidates[match.Index],
+                        differenceHashes,
+                        profile.GlobalDifferenceThreshold);
+                var sameSequence = IsSequenceVisualMatch(
+                    candidates[i],
+                    candidates[match.Index],
+                    match.Distance,
+                    differenceHashes,
+                    profile);
 
                 if (globallySimilar || sameSequence)
                 {
@@ -190,7 +204,7 @@ public sealed class DuplicateGroupingService : IDuplicateGroupingService
         }
 
         var similarClusters = clusters.Values
-            .SelectMany(c => SplitIntoCoherentClusters(c, profile))
+            .SelectMany(c => SplitIntoCoherentClusters(c, differenceHashes, profile))
             .Where(c => c.Count >= 2)
             .ToList();
 
@@ -201,9 +215,11 @@ public sealed class DuplicateGroupingService : IDuplicateGroupingService
             similarClusters.Count,
             profile.SearchThreshold);
 
+        var result = new List<PhotoGroup>(similarClusters.Count);
         foreach (var cluster in similarClusters)
         {
-            var isCaptureSequence = IsCaptureSequenceCluster(cluster, profile);
+            var isCaptureSequence = IsCaptureSequenceCluster(
+                cluster, differenceHashes, profile);
             var groupType = isCaptureSequence ? GroupType.Burst : GroupType.Similar;
             var group = new PhotoGroup
             {
@@ -222,12 +238,31 @@ public sealed class DuplicateGroupingService : IDuplicateGroupingService
                 grouped.Add(photo.Id);
             }
 
-            yield return group;
+            result.Add(group);
         }
+
+        return result;
+    }
+
+    private async Task<Dictionary<Guid, ulong>> LoadDifferenceHashesAsync(
+        IReadOnlyList<PhotoItem> candidates,
+        CancellationToken ct)
+    {
+        var hashes = new Dictionary<Guid, ulong>(candidates.Count);
+        foreach (var photo in candidates)
+        {
+            ct.ThrowIfCancellationRequested();
+            var hash = await _pHash.ComputeDHashAsync(photo.FilePath, ct);
+            if (hash.HasValue)
+                hashes[photo.Id] = hash.Value;
+        }
+
+        return hashes;
     }
 
     private bool IsCaptureSequenceCluster(
         IReadOnlyList<PhotoItem> cluster,
+        IReadOnlyDictionary<Guid, ulong> differenceHashes,
         SimilarityProfile profile)
     {
         if (!profile.UseCaptureSequence || cluster.Count < 2)
@@ -242,14 +277,29 @@ public sealed class DuplicateGroupingService : IDuplicateGroupingService
 
         for (var i = 1; i < sorted.Count; i++)
         {
-            if (!IsCaptureSequencePair(sorted[i - 1], sorted[i], profile))
+            if (!IsSequenceContextPair(
+                    sorted[i - 1],
+                    sorted[i],
+                    profile,
+                    profile.BurstMaxIntervalSeconds))
+            {
                 return false;
+            }
 
             var distance = _pHash.HammingDistance(
                 sorted[i - 1].PerceptualHash!.Value,
                 sorted[i].PerceptualHash!.Value);
-            if (distance > profile.SequenceThreshold)
+            if (distance > profile.GlobalThreshold)
                 return false;
+
+            if (!DifferenceHashesMatch(
+                    sorted[i - 1],
+                    sorted[i],
+                    differenceHashes,
+                    profile.GlobalDifferenceThreshold))
+            {
+                return false;
+            }
         }
 
         return true;
@@ -257,6 +307,7 @@ public sealed class DuplicateGroupingService : IDuplicateGroupingService
 
     private IEnumerable<List<PhotoItem>> SplitIntoCoherentClusters(
         List<PhotoItem> connectedComponent,
+        IReadOnlyDictionary<Guid, ulong> differenceHashes,
         SimilarityProfile profile)
     {
         if (connectedComponent.Count < 3)
@@ -274,8 +325,10 @@ public sealed class DuplicateGroupingService : IDuplicateGroupingService
         foreach (var photo in ordered)
         {
             var target = coherent.FirstOrDefault(group =>
-                AreCompatible(group[0], photo, profile)
-                && AreCompatible(group[^1], photo, profile));
+                IsSequenceAnchorCompatible(
+                    group[0], photo, differenceHashes, profile)
+                && AreCompatible(
+                    group[^1], photo, differenceHashes, profile));
 
             if (target is null)
                 coherent.Add([photo]);
@@ -290,20 +343,95 @@ public sealed class DuplicateGroupingService : IDuplicateGroupingService
     private bool AreCompatible(
         PhotoItem a,
         PhotoItem b,
+        IReadOnlyDictionary<Guid, ulong> differenceHashes,
         SimilarityProfile profile)
     {
         var distance = _pHash.HammingDistance(
             a.PerceptualHash!.Value,
             b.PerceptualHash!.Value);
-        return distance <= profile.GlobalThreshold
-            || (distance <= profile.SequenceThreshold
-                && IsCaptureSequencePair(a, b, profile));
+        return (distance <= profile.GlobalThreshold
+                && DifferenceHashesMatch(
+                    a, b, differenceHashes, profile.GlobalDifferenceThreshold))
+            || IsSequenceVisualMatch(
+                a, b, distance, differenceHashes, profile);
     }
 
-    private static bool IsCaptureSequencePair(
+    private bool IsSequenceAnchorCompatible(
+        PhotoItem anchor,
+        PhotoItem photo,
+        IReadOnlyDictionary<Guid, ulong> differenceHashes,
+        SimilarityProfile profile)
+    {
+        var distance = _pHash.HammingDistance(
+            anchor.PerceptualHash!.Value,
+            photo.PerceptualHash!.Value);
+        if (distance <= profile.GlobalThreshold)
+        {
+            return DifferenceHashesMatch(
+                anchor,
+                photo,
+                differenceHashes,
+                profile.GlobalDifferenceThreshold);
+        }
+
+        return distance <= profile.SequenceThreshold
+            && IsSameCaptureSession(anchor, photo, profile)
+            && DifferenceHashesMatch(
+                anchor,
+                photo,
+                differenceHashes,
+                profile.SequenceDifferenceThreshold);
+    }
+
+    private bool IsSequenceVisualMatch(
         PhotoItem a,
         PhotoItem b,
+        int perceptualDistance,
+        IReadOnlyDictionary<Guid, ulong> differenceHashes,
         SimilarityProfile profile)
+        => perceptualDistance <= profile.SequenceThreshold
+            && IsSequenceContextPair(a, b, profile)
+            && DifferenceHashesMatch(
+                a,
+                b,
+                differenceHashes,
+                profile.SequenceDifferenceThreshold);
+
+    private bool DifferenceHashesMatch(
+        PhotoItem a,
+        PhotoItem b,
+        IReadOnlyDictionary<Guid, ulong> differenceHashes,
+        int threshold)
+        => differenceHashes.TryGetValue(a.Id, out var hashA)
+            && differenceHashes.TryGetValue(b.Id, out var hashB)
+            && _pHash.HammingDistance(hashA, hashB)
+                <= threshold;
+
+    private static bool IsSequenceContextPair(
+        PhotoItem a,
+        PhotoItem b,
+        SimilarityProfile profile,
+        int? timeWindowSeconds = null)
+    {
+        if (!IsSameCaptureSession(a, b, profile, timeWindowSeconds))
+            return false;
+
+        var hasNumberA = TryGetSequenceNumber(a, out var prefixA, out var numberA);
+        var hasNumberB = TryGetSequenceNumber(b, out var prefixB, out var numberB);
+        if (!hasNumberA || !hasNumberB)
+            return true;
+
+        var numberGap = Math.Abs(numberA - numberB);
+        return string.Equals(prefixA, prefixB, StringComparison.OrdinalIgnoreCase)
+            && numberGap > 0
+            && numberGap <= profile.MaxSequenceNumberGap;
+    }
+
+    private static bool IsSameCaptureSession(
+        PhotoItem a,
+        PhotoItem b,
+        SimilarityProfile profile,
+        int? timeWindowSeconds = null)
     {
         if (!profile.UseCaptureSequence)
             return false;
@@ -315,22 +443,18 @@ public sealed class DuplicateGroupingService : IDuplicateGroupingService
 
         var timeA = GetCaptureTime(a);
         var timeB = GetCaptureTime(b);
+        var allowedSeconds = timeWindowSeconds ?? profile.SequenceWindowSeconds;
         if (!timeA.HasValue || !timeB.HasValue
             || Math.Abs((timeA.Value - timeB.Value).TotalSeconds)
-                > profile.SequenceWindowSeconds)
+                > allowedSeconds)
         {
             return false;
         }
 
-        var hasNumberA = TryGetSequenceNumber(a, out var prefixA, out var numberA);
-        var hasNumberB = TryGetSequenceNumber(b, out var prefixB, out var numberB);
-        if (!hasNumberA || !hasNumberB)
-            return true;
-
-        var numberGap = Math.Abs(numberA - numberB);
-        return string.Equals(prefixA, prefixB, StringComparison.OrdinalIgnoreCase)
-            && numberGap > 0
-            && numberGap <= profile.MaxSequenceNumberGap;
+        var hasNumberA = TryGetSequenceNumber(a, out var prefixA, out _);
+        var hasNumberB = TryGetSequenceNumber(b, out var prefixB, out _);
+        return !hasNumberA || !hasNumberB
+            || string.Equals(prefixA, prefixB, StringComparison.OrdinalIgnoreCase);
     }
 
     private static DateTime? GetCaptureTime(PhotoItem photo)

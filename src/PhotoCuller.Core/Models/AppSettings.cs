@@ -49,7 +49,7 @@ public class AppSettings
     /// <summary>Preset used for similar-photo grouping. Normal is conservative for 64-bit pHash.</summary>
     public SimilarityPreset SimilarityPreset { get; set; } = SimilarityPreset.Normal;
 
-    /// <summary>Burst-shot time window in seconds.</summary>
+    /// <summary>Maximum time gap used when searching adjacent captures.</summary>
     public int BurstTimeWindowSeconds { get; set; } = 120;
 
     public bool UseCaptureTimeForGrouping { get; set; } = true;

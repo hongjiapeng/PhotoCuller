@@ -123,7 +123,7 @@ Choose a search effort in **Settings → Similar Photo Settings**, click **Save 
 | Balanced (recommended) | Balances accuracy with recognition of nearby sequential captures |
 | Find more | Recalls larger composition changes and is best with per-group review |
 
-Photos captured far apart use a strict visual threshold. A more tolerant threshold is used only when photos share a directory, have nearby capture times, and use sequential filenames. Burst and ordinary similarity edges are clustered together so one capture sequence is not split into several small groups.
+Photos are merged only when both pHash and dHash agree. A more tolerant threshold is used only when photos share a directory, have nearby capture times, and have adjacent sequence numbers; the first and last members are checked again to prevent gradual subject drift from creating one large group. Only highly similar frames captured within roughly two seconds are labelled as a burst. Other same-scene groups are labelled similar.
 
 Advanced settings can still override the global threshold, capture-sequence threshold, and time window. Most users should leave them off. Perceptual hashes remain cached, but a new scan is required to rebuild groups.
 

@@ -12,33 +12,39 @@ internal static class SimilarityThresholds
         if (settings.UseAdvancedSimilaritySettings)
         {
             var global = Math.Clamp(settings.SimilarityThresholdHigh, 1, 24);
-            var sequence = Math.Clamp(settings.SimilarityThresholdPossible, global, 40);
+            var sequence = Math.Clamp(settings.SimilarityThresholdPossible, global, 32);
             return new SimilarityProfile(
                 global,
+                Math.Clamp(global + 4, global, 24),
                 sequence,
+                Math.Clamp(sequence - 2, global, 30),
                 Math.Clamp(settings.BurstTimeWindowSeconds, 1, 300),
                 settings.UseCaptureTimeForGrouping,
-                MaxSequenceNumberGap: 5);
+                MaxSequenceNumberGap: 1,
+                BurstMaxIntervalSeconds: 2);
         }
 
         return settings.SimilarityPreset switch
         {
-            SimilarityPreset.Strict => new SimilarityProfile(8, 20, 30,
-                settings.UseCaptureTimeForGrouping, 2),
-            SimilarityPreset.Loose => new SimilarityProfile(16, 38, 300,
-                settings.UseCaptureTimeForGrouping, 10),
-            _ => new SimilarityProfile(12, 32, 120,
-                settings.UseCaptureTimeForGrouping, 5),
+            SimilarityPreset.Strict => new SimilarityProfile(8, 12, 20, 18, 30,
+                settings.UseCaptureTimeForGrouping, 1, 2),
+            SimilarityPreset.Loose => new SimilarityProfile(16, 20, 32, 30, 300,
+                settings.UseCaptureTimeForGrouping, 1, 2),
+            _ => new SimilarityProfile(12, 16, 30, 26, 120,
+                settings.UseCaptureTimeForGrouping, 1, 2),
         };
     }
 }
 
 internal readonly record struct SimilarityProfile(
     int GlobalThreshold,
+    int GlobalDifferenceThreshold,
     int SequenceThreshold,
+    int SequenceDifferenceThreshold,
     int SequenceWindowSeconds,
     bool UseCaptureSequence,
-    int MaxSequenceNumberGap)
+    int MaxSequenceNumberGap,
+    int BurstMaxIntervalSeconds)
 {
     public int SearchThreshold => Math.Max(GlobalThreshold, SequenceThreshold);
 }

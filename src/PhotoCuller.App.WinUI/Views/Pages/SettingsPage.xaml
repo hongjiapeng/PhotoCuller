@@ -301,7 +301,7 @@
                                 <NumberBox AutomationProperties.AutomationId="SequenceSimilarityThreshold"
                                            Grid.Column="1"
                                            Minimum="1"
-                                           Maximum="40"
+                                           Maximum="32"
                                            IsEnabled="{x:Bind ViewModel.UseAdvancedSimilaritySettings, Mode=OneWay}"
                                            SpinButtonPlacementMode="Compact"
                                            Value="{x:Bind ViewModel.SimilarityThresholdPossible, Mode=TwoWay}"/>

@@ -22,6 +22,9 @@ public sealed class DuplicateGroupingServiceTests
 
         // Default: Hamming distance = 0 (identical hashes)
         _pHash.HammingDistance(Arg.Any<ulong>(), Arg.Any<ulong>()).Returns(0);
+        _pHash.ComputeDHashAsync(
+                Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<ulong?>(0));
 
         var settings = new AppSettings
         {
@@ -92,7 +95,7 @@ public sealed class DuplicateGroupingServiceTests
             new()
             {
                 FilePath = @"D:\Photos\b.jpg",
-                ExifTakenTime = baseTime.AddSeconds(3),   // within 10s window
+                ExifTakenTime = baseTime.AddSeconds(1),
                 PerceptualHash = 0xFFFF_FFFF_FFFF_FFFFUL,
             },
         };
@@ -193,7 +196,10 @@ public sealed class DuplicateGroupingServiceTests
     [Fact]
     public async Task BuildGroups_LoosePreset_GroupsResizeOrCompressedVariant()
     {
-        var sut = CreateService(SimilarityPreset.Loose, new CountingPHash());
+        var pHash = new CountingPHash()
+            .WithDifferenceHash("original.jpg", 0)
+            .WithDifferenceHash("resized.jpg", (1UL << 5) - 1);
+        var sut = CreateService(SimilarityPreset.Loose, pHash);
         var photos = new List<PhotoItem>
         {
             Photo("original.jpg",  0b0000_0000UL, score: 88f),
@@ -228,7 +234,9 @@ public sealed class DuplicateGroupingServiceTests
     [Fact]
     public async Task BuildGroups_NormalPreset_UsesBkTreeInsteadOfPairwiseScan()
     {
-        var pHash = new CountingPHash();
+        var pHash = new CountingPHash()
+            .WithDifferenceHash("photo-0.jpg", 0)
+            .WithDifferenceHash("photo-1.jpg", 0);
         var sut = CreateService(
             SimilarityPreset.Normal,
             pHash,
@@ -246,13 +254,15 @@ public sealed class DuplicateGroupingServiceTests
     }
 
     [Theory]
-    [InlineData(SimilarityPreset.Strict, 8, 20, 30, 2)]
-    [InlineData(SimilarityPreset.Normal, 12, 32, 120, 5)]
-    [InlineData(SimilarityPreset.Loose, 16, 38, 300, 10)]
+    [InlineData(SimilarityPreset.Strict, 8, 12, 20, 18, 30, 1)]
+    [InlineData(SimilarityPreset.Normal, 12, 16, 30, 26, 120, 1)]
+    [InlineData(SimilarityPreset.Loose, 16, 20, 32, 30, 300, 1)]
     public void FromSettings_BasicPreset_UsesCompleteProfile(
         SimilarityPreset preset,
         int expectedGlobal,
+        int expectedGlobalDifference,
         int expectedSequence,
+        int expectedSequenceDifference,
         int expectedWindow,
         int expectedNumberGap)
     {
@@ -268,17 +278,24 @@ public sealed class DuplicateGroupingServiceTests
         var profile = SimilarityThresholds.FromSettings(settings);
 
         profile.GlobalThreshold.Should().Be(expectedGlobal);
+        profile.GlobalDifferenceThreshold.Should().Be(expectedGlobalDifference);
         profile.SequenceThreshold.Should().Be(expectedSequence);
+        profile.SequenceDifferenceThreshold.Should().Be(expectedSequenceDifference);
         profile.SequenceWindowSeconds.Should().Be(expectedWindow);
         profile.MaxSequenceNumberGap.Should().Be(expectedNumberGap);
+        profile.BurstMaxIntervalSeconds.Should().Be(2);
         profile.UseCaptureSequence.Should().BeTrue();
     }
 
     [Fact]
-    public async Task BuildGroups_NormalPreset_NearbySequentialPhotosUseLooserThresholdAndStayTogether()
+    public async Task BuildGroups_NormalPreset_NearbySequentialPhotosStayTogetherAsSimilar()
     {
         var baseTime = new DateTime(2025, 8, 30, 10, 0, 0, DateTimeKind.Utc);
-        var sut = CreateService(SimilarityPreset.Normal, new CountingPHash());
+        var pHash = new CountingPHash()
+            .WithDifferenceHash(@"D:\Photos\DSC02127.JPG", 0)
+            .WithDifferenceHash(@"D:\Photos\DSC02128.JPG", (1UL << 10) - 1)
+            .WithDifferenceHash(@"D:\Photos\DSC02129.JPG", (1UL << 12) - 1);
+        var sut = CreateService(SimilarityPreset.Normal, pHash);
         var photos = new List<PhotoItem>
         {
             SequencePhoto(@"D:\Photos\DSC02127.JPG", 0, baseTime),
@@ -291,7 +308,7 @@ public sealed class DuplicateGroupingServiceTests
         var groups = await sut.BuildGroupsAsync(photos);
 
         groups.Should().ContainSingle();
-        groups[0].GroupType.Should().Be(GroupType.Burst);
+        groups[0].GroupType.Should().Be(GroupType.Similar);
         groups[0].Photos.Select(p => p.FileName).Should().BeEquivalentTo(
             "DSC02127.JPG", "DSC02128.JPG", "DSC02129.JPG");
     }
@@ -318,7 +335,11 @@ public sealed class DuplicateGroupingServiceTests
     public async Task BuildGroups_SequenceSimilarityChain_DoesNotCreateIncoherentGroup()
     {
         var baseTime = new DateTime(2025, 8, 30, 10, 0, 0, DateTimeKind.Utc);
-        var sut = CreateService(SimilarityPreset.Normal, new CountingPHash());
+        var pHash = new CountingPHash()
+            .WithDifferenceHash(@"D:\Photos\DSC03001.JPG", 0)
+            .WithDifferenceHash(@"D:\Photos\DSC03002.JPG", (1UL << 10) - 1)
+            .WithDifferenceHash(@"D:\Photos\DSC03003.JPG", (1UL << 20) - 1);
+        var sut = CreateService(SimilarityPreset.Normal, pHash);
         var photos = new List<PhotoItem>
         {
             SequencePhoto(@"D:\Photos\DSC03001.JPG", 0, baseTime),
@@ -337,12 +358,93 @@ public sealed class DuplicateGroupingServiceTests
     }
 
     [Fact]
+    public async Task BuildGroups_LoosePreset_SubjectChangeSplitsAdjacentPhotosIntoSceneGroups()
+    {
+        var baseTime = new DateTime(2025, 8, 30, 10, 0, 0, DateTimeKind.Utc);
+        const ulong low12 = (1UL << 12) - 1;
+        const ulong high33 = ((1UL << 33) - 1) << 31;
+        var pHash = new CountingPHash()
+            .WithDifferenceHash(@"D:\Photos\DSC02102.JPG", 0)
+            .WithDifferenceHash(@"D:\Photos\DSC02103.JPG", (1UL << 8) - 1)
+            .WithDifferenceHash(@"D:\Photos\DSC02104.JPG", (1UL << 10) - 1)
+            .WithDifferenceHash(@"D:\Photos\DSC02105.JPG", (1UL << 31) - 1)
+            .WithDifferenceHash(@"D:\Photos\DSC02106.JPG", (1UL << 31) - 1 ^ 0b11UL);
+        var sut = CreateService(SimilarityPreset.Loose, pHash);
+        var photos = new List<PhotoItem>
+        {
+            SequencePhoto(@"D:\Photos\DSC02102.JPG", 0, baseTime),
+            SequencePhoto(@"D:\Photos\DSC02103.JPG", (1UL << 10) - 1,
+                baseTime.AddSeconds(10)),
+            SequencePhoto(@"D:\Photos\DSC02104.JPG", low12,
+                baseTime.AddSeconds(20)),
+            SequencePhoto(@"D:\Photos\DSC02105.JPG", low12 | high33,
+                baseTime.AddSeconds(30)),
+            SequencePhoto(@"D:\Photos\DSC02106.JPG", (low12 | high33) ^ 0b11UL,
+                baseTime.AddSeconds(40)),
+        };
+
+        var groups = await sut.BuildGroupsAsync(photos);
+
+        groups.Should().HaveCount(2);
+        groups.Should().OnlyContain(g => g.GroupType == GroupType.Similar);
+        groups.Select(g => g.Photos.Select(p => p.FileName)).Should().BeEquivalentTo(
+            new[]
+            {
+                new[] { "DSC02102.JPG", "DSC02103.JPG", "DSC02104.JPG" },
+                new[] { "DSC02105.JPG", "DSC02106.JPG" },
+            });
+    }
+
+    [Fact]
+    public async Task BuildGroups_LoosePreset_TimeAdjacentButDHashDifferent_DoesNotGroup()
+    {
+        var baseTime = new DateTime(2025, 8, 30, 10, 0, 0, DateTimeKind.Utc);
+        var pHash = new CountingPHash()
+            .WithDifferenceHash(@"D:\Photos\DSC04001.JPG", 0)
+            .WithDifferenceHash(@"D:\Photos\DSC04002.JPG", (1UL << 31) - 1);
+        var sut = CreateService(SimilarityPreset.Loose, pHash);
+        var photos = new List<PhotoItem>
+        {
+            SequencePhoto(@"D:\Photos\DSC04001.JPG", 0, baseTime),
+            SequencePhoto(@"D:\Photos\DSC04002.JPG", (1UL << 31) - 1,
+                baseTime.AddSeconds(1)),
+        };
+
+        var groups = await sut.BuildGroupsAsync(photos);
+
+        groups.Should().BeEmpty();
+        photos.Should().OnlyContain(p => p.GroupId == null);
+    }
+
+    [Fact]
+    public async Task BuildGroups_LoosePreset_PHashCollisionAcrossSessions_DHashRejectsFalsePositive()
+    {
+        var pHash = new CountingPHash()
+            .WithDifferenceHash(@"D:\A\DSC02117.JPG", 0)
+            .WithDifferenceHash(@"D:\B\DSC02155.JPG", (1UL << 30) - 1);
+        var sut = CreateService(SimilarityPreset.Loose, pHash);
+        var photos = new List<PhotoItem>
+        {
+            Photo(@"D:\A\DSC02117.JPG", 0),
+            Photo(@"D:\B\DSC02155.JPG", (1UL << 16) - 1),
+        };
+
+        var groups = await sut.BuildGroupsAsync(photos);
+
+        groups.Should().BeEmpty();
+        photos.Should().OnlyContain(p => p.GroupId == null);
+    }
+
+    [Fact]
     public async Task BuildGroups_AdvancedOverride_AllowsExplicitGlobalThreshold()
     {
         var baseTime = new DateTime(2025, 8, 30, 10, 0, 0, DateTimeKind.Utc);
+        var pHash = new CountingPHash()
+            .WithDifferenceHash(@"D:\A\one.jpg", 0)
+            .WithDifferenceHash(@"D:\B\two.jpg", (1UL << 10) - 1);
         var sut = CreateService(
             SimilarityPreset.Strict,
-            new CountingPHash(),
+            pHash,
             possibleThreshold: 24,
             highThreshold: 20,
             useAdvanced: true);
@@ -402,13 +504,25 @@ public sealed class DuplicateGroupingServiceTests
 
     private sealed class CountingPHash : IPerceptualHashService
     {
+        private readonly Dictionary<string, ulong> _differenceHashes =
+            new(StringComparer.OrdinalIgnoreCase);
+
         public long DistanceCalls { get; private set; }
+
+        public CountingPHash WithDifferenceHash(string filePath, ulong hash)
+        {
+            _differenceHashes[filePath] = hash;
+            return this;
+        }
 
         public Task<ulong?> ComputePHashAsync(string filePath, CancellationToken ct = default)
             => Task.FromResult<ulong?>(null);
 
         public Task<ulong?> ComputeDHashAsync(string filePath, CancellationToken ct = default)
-            => Task.FromResult<ulong?>(null);
+            => Task.FromResult(
+                _differenceHashes.TryGetValue(filePath, out var hash)
+                    ? (ulong?)hash
+                    : null);
 
         public int HammingDistance(ulong hashA, ulong hashB)
         {
