@@ -65,6 +65,7 @@ public static class InfrastructureServiceExtensions
         // Hashing
         services.AddTransient<IHashService, HashService>();
         services.AddTransient<IPerceptualHashService, PerceptualHashService>();
+        services.AddTransient<ILocalFeatureMatcher, OrbLocalFeatureMatcher>();
         services.AddTransient<ISimilarityService, SimilarityService>();
         services.AddTransient<IDuplicateGroupingService, DuplicateGroupingService>();
 

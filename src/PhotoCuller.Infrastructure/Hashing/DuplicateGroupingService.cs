@@ -16,12 +16,11 @@ namespace PhotoCuller.Infrastructure.Hashing;
 ///     Any photos sharing an identical hash → ExactDuplicate group.
 ///     Already-grouped photos are excluded from subsequent passes.
 ///
-///   Pass 2 — Visual groups (pHash + dHash + capture-sequence context)
+///   Pass 2 — Visual groups (pHash + dHash + local-feature verification)
 ///     A strict global threshold finds near-duplicates across the library. A
 ///     more tolerant threshold is used only when both perceptual hashes agree
-///     for adjacent filenames in the same directory. Both edge types are
-///     clustered in one graph so a burst cannot hide members from later
-///     similarity detection.
+///     for adjacent filenames in the same directory and ORB features confirm
+///     shared scene geometry. Both edge types are clustered in one graph.
 ///
 /// After grouping, each group is assigned a recommended photo:
 ///   - If any member is ManualKeep → that one wins.
@@ -31,15 +30,18 @@ namespace PhotoCuller.Infrastructure.Hashing;
 public sealed class DuplicateGroupingService : IDuplicateGroupingService
 {
     private readonly IPerceptualHashService _pHash;
+    private readonly ILocalFeatureMatcher _localFeatureMatcher;
     private readonly ISettingsRepository _settingsRepository;
     private readonly ILogger<DuplicateGroupingService> _logger;
 
     public DuplicateGroupingService(
         IPerceptualHashService pHash,
+        ILocalFeatureMatcher localFeatureMatcher,
         ISettingsRepository settingsRepository,
         ILogger<DuplicateGroupingService> logger)
     {
         _pHash = pHash;
+        _localFeatureMatcher = localFeatureMatcher;
         _settingsRepository = settingsRepository;
         _logger = logger;
     }
@@ -170,20 +172,30 @@ public sealed class DuplicateGroupingService : IDuplicateGroupingService
                          candidates[i].PerceptualHash!.Value,
                          profile.SearchThreshold))
             {
+                var earlier = candidates[match.Index];
+                var current = candidates[i];
                 var globallySimilar = match.Distance <= profile.GlobalThreshold
                     && DifferenceHashesMatch(
-                        candidates[i],
-                        candidates[match.Index],
+                        earlier,
+                        current,
                         differenceHashes,
                         profile.GlobalDifferenceThreshold);
-                var sameSequence = IsSequenceVisualMatch(
-                    candidates[i],
-                    candidates[match.Index],
+                var sequenceCandidate = IsSequenceVisualMatch(
+                    earlier,
+                    current,
                     match.Distance,
                     differenceHashes,
                     profile);
+                var sameSequence = sequenceCandidate
+                    && await _localFeatureMatcher.IsSameSceneAsync(
+                        earlier.FilePath,
+                        current.FilePath,
+                        ct);
 
-                if (globallySimilar || sameSequence)
+                // A sequential pair uses the more tolerant hash profile, so
+                // local geometry is authoritative even when it also happens
+                // to fit the strict global hash thresholds.
+                if (sequenceCandidate ? sameSequence : globallySimilar)
                 {
                     uf.Union(i, match.Index);
                     similarPairs++;

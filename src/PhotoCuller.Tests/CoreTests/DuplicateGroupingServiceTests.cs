@@ -14,6 +14,7 @@ namespace PhotoCuller.Tests.CoreTests;
 public sealed class DuplicateGroupingServiceTests
 {
     private readonly IPerceptualHashService _pHash;
+    private readonly ILocalFeatureMatcher _localFeatureMatcher;
     private readonly DuplicateGroupingService _sut;
 
     public DuplicateGroupingServiceTests()
@@ -25,6 +26,12 @@ public sealed class DuplicateGroupingServiceTests
         _pHash.ComputeDHashAsync(
                 Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<ulong?>(0));
+        _localFeatureMatcher = Substitute.For<ILocalFeatureMatcher>();
+        _localFeatureMatcher.IsSameSceneAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>())
+            .Returns(true);
 
         var settings = new AppSettings
         {
@@ -36,6 +43,7 @@ public sealed class DuplicateGroupingServiceTests
 
         _sut = new DuplicateGroupingService(
             _pHash,
+            _localFeatureMatcher,
             new InMemorySettingsRepository(settings),
             NullLogger<DuplicateGroupingService>.Instance);
     }
@@ -417,6 +425,66 @@ public sealed class DuplicateGroupingServiceTests
     }
 
     [Fact]
+    public async Task BuildGroups_LoosePreset_HashCompatibleSceneChange_LocalFeaturesRejectPair()
+    {
+        var baseTime = new DateTime(2025, 8, 30, 10, 0, 0, DateTimeKind.Utc);
+        const string firstPath = @"D:\Photos\DSC02152.JPG";
+        const string secondPath = @"D:\Photos\DSC02153.JPG";
+        var pHash = new CountingPHash()
+            .WithDifferenceHash(firstPath, 0)
+            .WithDifferenceHash(secondPath, (1UL << 20) - 1);
+        var localFeatureMatcher = Substitute.For<ILocalFeatureMatcher>();
+        localFeatureMatcher.IsSameSceneAsync(
+                firstPath, secondPath, Arg.Any<CancellationToken>())
+            .Returns(false);
+        var sut = CreateService(
+            SimilarityPreset.Loose, pHash, localFeatureMatcher);
+        var photos = new List<PhotoItem>
+        {
+            SequencePhoto(firstPath, 0, baseTime),
+            SequencePhoto(secondPath, (1UL << 24) - 1, baseTime.AddSeconds(17)),
+        };
+
+        var groups = await sut.BuildGroupsAsync(photos);
+
+        groups.Should().BeEmpty();
+        photos.Should().OnlyContain(p => p.GroupId == null);
+        await localFeatureMatcher.Received(1).IsSameSceneAsync(
+            firstPath, secondPath, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task BuildGroups_LoosePreset_HashCompatibleSameScene_LocalFeaturesKeepPair()
+    {
+        var baseTime = new DateTime(2025, 8, 30, 10, 0, 0, DateTimeKind.Utc);
+        const string firstPath = @"D:\Photos\DSC02153.JPG";
+        const string secondPath = @"D:\Photos\DSC02154.JPG";
+        var pHash = new CountingPHash()
+            .WithDifferenceHash(firstPath, 0)
+            .WithDifferenceHash(secondPath, (1UL << 18) - 1);
+        var localFeatureMatcher = Substitute.For<ILocalFeatureMatcher>();
+        localFeatureMatcher.IsSameSceneAsync(
+                firstPath, secondPath, Arg.Any<CancellationToken>())
+            .Returns(true);
+        var sut = CreateService(
+            SimilarityPreset.Loose, pHash, localFeatureMatcher);
+        var photos = new List<PhotoItem>
+        {
+            SequencePhoto(firstPath, 0, baseTime),
+            SequencePhoto(secondPath, (1UL << 22) - 1, baseTime.AddSeconds(2)),
+        };
+
+        var groups = await sut.BuildGroupsAsync(photos);
+
+        groups.Should().ContainSingle();
+        groups[0].Photos.Select(p => p.FileName).Should().Equal(
+            "DSC02153.JPG", "DSC02154.JPG");
+        groups[0].GroupType.Should().Be(GroupType.Similar);
+        await localFeatureMatcher.Received(1).IsSameSceneAsync(
+            firstPath, secondPath, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task BuildGroups_LoosePreset_PHashCollisionAcrossSessions_DHashRejectsFalsePositive()
     {
         var pHash = new CountingPHash()
@@ -463,6 +531,7 @@ public sealed class DuplicateGroupingServiceTests
     private static DuplicateGroupingService CreateService(
         SimilarityPreset preset,
         IPerceptualHashService pHash,
+        ILocalFeatureMatcher? localFeatureMatcher = null,
         int possibleThreshold = 32,
         int highThreshold = 12,
         bool useAdvanced = false)
@@ -479,8 +548,20 @@ public sealed class DuplicateGroupingServiceTests
 
         return new DuplicateGroupingService(
             pHash,
+            localFeatureMatcher ?? AlwaysMatchingLocalFeatures(),
             new InMemorySettingsRepository(settings),
             NullLogger<DuplicateGroupingService>.Instance);
+    }
+
+    private static ILocalFeatureMatcher AlwaysMatchingLocalFeatures()
+    {
+        var matcher = Substitute.For<ILocalFeatureMatcher>();
+        matcher.IsSameSceneAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>())
+            .Returns(true);
+        return matcher;
     }
 
     private static PhotoItem Photo(string path, ulong pHash, float score = 50f)
