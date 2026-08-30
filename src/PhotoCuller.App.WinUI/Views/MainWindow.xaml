@@ -20,7 +20,7 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="210"/>
                 <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="310"/>
+                <ColumnDefinition x:Name="DetailColumn" Width="310"/>
             </Grid.ColumnDefinitions>
 
             <!-- ── LEFT NAV ──────────────────────────────────────────────── -->
