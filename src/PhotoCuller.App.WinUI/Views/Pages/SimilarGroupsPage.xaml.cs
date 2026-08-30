@@ -211,6 +211,15 @@ public sealed partial class SimilarGroupsPage : Page
     {
         if (_vm is null) return;
 
+        _vm.SelectedPhoto = ReferenceEquals(sender, RecommendedImage)
+            ? _vm.RecommendedPhoto
+            : _vm.ComparePhoto;
+    }
+
+    private void LargePhoto_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
+    {
+        if (_vm is null) return;
+
         _vm.InspectPhoto = ReferenceEquals(sender, RecommendedImage)
             ? _vm.RecommendedPhoto
             : _vm.ComparePhoto;

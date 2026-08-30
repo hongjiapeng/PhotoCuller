@@ -297,7 +297,8 @@
                                 <Image x:Name="RecommendedImage"
                                        Stretch="Uniform"
                                        ImageOpened="LargeImage_ImageOpened"
-                                       Tapped="LargePhoto_Tapped"/>
+                                       Tapped="LargePhoto_Tapped"
+                                       DoubleTapped="LargePhoto_DoubleTapped"/>
                                 <TextBlock x:Name="RecommendedImagePlaceholder"
                                            Text="无法加载图片"
                                            Visibility="Collapsed"
@@ -358,7 +359,8 @@
                                 <Image x:Name="CompareImage"
                                        Stretch="Uniform"
                                        ImageOpened="LargeImage_ImageOpened"
-                                       Tapped="LargePhoto_Tapped"/>
+                                       Tapped="LargePhoto_Tapped"
+                                       DoubleTapped="LargePhoto_DoubleTapped"/>
                                 <TextBlock x:Name="CompareImagePlaceholder"
                                            Text="无法加载图片"
                                            Visibility="Collapsed"
