@@ -16,6 +16,7 @@ public sealed class OrbLocalFeatureMatcher : ILocalFeatureMatcher, IDisposable
     private const int MinimumGoodMatches = 12;
     private const int MinimumInliers = 8;
     private const double MinimumInlierRatio = 0.30;
+    private const double MinimumInlierCoverage = 0.03;
     private const float RatioTestThreshold = 0.75f;
     private const double RansacReprojectionThreshold = 4.0;
     private const int MaxCachedImages = 256;
@@ -98,12 +99,12 @@ public sealed class OrbLocalFeatureMatcher : ILocalFeatureMatcher, IDisposable
         {
             var point = first.KeyPoints[match.QueryIdx].Pt;
             return new Point2d(point.X, point.Y);
-        });
+        }).ToArray();
         var targetPoints = goodMatches.Select(match =>
         {
             var point = second.KeyPoints[match.TrainIdx].Pt;
             return new Point2d(point.X, point.Y);
-        });
+        }).ToArray();
 
         using var inlierMask = new Mat();
         using var homography = Cv2.FindHomography(
@@ -118,7 +119,56 @@ public sealed class OrbLocalFeatureMatcher : ILocalFeatureMatcher, IDisposable
         var inlierCount = Cv2.CountNonZero(inlierMask);
         var inlierRatio = inlierCount / (double)goodMatches.Count;
         return inlierCount >= MinimumInliers
-            && inlierRatio >= MinimumInlierRatio;
+            && inlierRatio >= MinimumInlierRatio
+            && HasSufficientInlierCoverage(
+                sourcePoints,
+                targetPoints,
+                inlierMask,
+                first.ImageSize,
+                second.ImageSize);
+    }
+
+    private static bool HasSufficientInlierCoverage(
+        Point2d[] sourcePoints,
+        Point2d[] targetPoints,
+        Mat inlierMask,
+        Size sourceSize,
+        Size targetSize)
+    {
+        var sourceInliers = new List<Point2d>();
+        var targetInliers = new List<Point2d>();
+        for (var i = 0; i < sourcePoints.Length; i++)
+        {
+            if (inlierMask.At<byte>(i, 0) == 0)
+                continue;
+
+            sourceInliers.Add(sourcePoints[i]);
+            targetInliers.Add(targetPoints[i]);
+        }
+
+        return GetBoundingCoverage(sourceInliers, sourceSize)
+                >= MinimumInlierCoverage
+            && GetBoundingCoverage(targetInliers, targetSize)
+                >= MinimumInlierCoverage;
+    }
+
+    private static double GetBoundingCoverage(
+        List<Point2d> points,
+        Size imageSize)
+    {
+        if (points.Count < MinimumInliers
+            || imageSize.Width <= 0
+            || imageSize.Height <= 0)
+        {
+            return 0;
+        }
+
+        var width = points.Max(point => point.X)
+            - points.Min(point => point.X);
+        var height = points.Max(point => point.Y)
+            - points.Min(point => point.Y);
+        return width * height
+            / (imageSize.Width * (double)imageSize.Height);
     }
 
     private LocalFeatures? GetOrExtractFeatures(
@@ -193,7 +243,7 @@ public sealed class OrbLocalFeatureMatcher : ILocalFeatureMatcher, IDisposable
             return null;
         }
 
-        return new LocalFeatures(keyPoints, descriptors);
+        return new LocalFeatures(keyPoints, descriptors, resized.Size());
     }
 
     public void Dispose()
@@ -213,10 +263,12 @@ public sealed class OrbLocalFeatureMatcher : ILocalFeatureMatcher, IDisposable
 
     private sealed class LocalFeatures(
         KeyPoint[] keyPoints,
-        Mat descriptors) : IDisposable
+        Mat descriptors,
+        Size imageSize) : IDisposable
     {
         public KeyPoint[] KeyPoints { get; } = keyPoints;
         public Mat Descriptors { get; } = descriptors;
+        public Size ImageSize { get; } = imageSize;
 
         public void Dispose() => Descriptors.Dispose();
     }

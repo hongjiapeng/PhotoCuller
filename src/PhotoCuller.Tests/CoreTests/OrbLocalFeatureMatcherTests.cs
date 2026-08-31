@@ -62,6 +62,30 @@ public sealed class OrbLocalFeatureMatcherTests : IDisposable
     }
 
     [Fact]
+    public async Task IsSameScene_PartialOverlapWithDifferentComposition_ReturnsFalse()
+    {
+        var widePath = Path.Combine(_tempDirectory, "wide.png");
+        var closeUpPath = Path.Combine(_tempDirectory, "close-up.png");
+        using var wide = CreateTexturedScene(seed: 31);
+        using var closeUp = CreateTexturedScene(seed: 77);
+        using var sharedDetail = CreateSharedDetail();
+        using var wideRegion = new Mat(wide, new Rect(90, 120, sharedDetail.Width, sharedDetail.Height));
+        using var closeUpRegion = new Mat(closeUp, new Rect(560, 320, sharedDetail.Width, sharedDetail.Height));
+        sharedDetail.CopyTo(wideRegion);
+        sharedDetail.CopyTo(closeUpRegion);
+        Cv2.ImWrite(widePath, wide);
+        Cv2.ImWrite(closeUpPath, closeUp);
+        using var sut = CreateMatcher();
+
+        var forward = await sut.IsSameSceneAsync(widePath, closeUpPath);
+        var reverse = await sut.IsSameSceneAsync(closeUpPath, widePath);
+
+        forward.Should().BeFalse(
+            "a shared building or region is insufficient when the overall framing differs");
+        reverse.Should().BeFalse("composition matching must be order-independent");
+    }
+
+    [Fact]
     public async Task IsSameScene_UnreadableImage_ReturnsFalseWithoutThrowing()
     {
         var validPath = Path.Combine(_tempDirectory, "valid.png");
@@ -151,6 +175,32 @@ public sealed class OrbLocalFeatureMatcherTests : IDisposable
             2.0,
             Scalar.White,
             thickness: 4);
+        return image;
+    }
+
+    private static Mat CreateSharedDetail()
+    {
+        var image = new Mat(
+            new Size(100, 100),
+            MatType.CV_8UC3,
+            new Scalar(235, 235, 235));
+        for (var y = 8; y < image.Height; y += 14)
+        {
+            for (var x = 8; x < image.Width; x += 14)
+            {
+                var color = new Scalar(
+                    (x * 17 + y * 3) % 255,
+                    (x * 5 + y * 19) % 255,
+                    (x * 11 + y * 7) % 255);
+                Cv2.Circle(image, new Point(x, y), 4, color, thickness: -1);
+                Cv2.Line(
+                    image,
+                    new Point(x - 5, y + 5),
+                    new Point(x + 5, y - 5),
+                    Scalar.Black,
+                    thickness: 1);
+            }
+        }
         return image;
     }
 
