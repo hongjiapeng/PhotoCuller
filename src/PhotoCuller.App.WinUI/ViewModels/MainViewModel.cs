@@ -32,6 +32,10 @@ public sealed partial class MainViewModel : ObservableObject
     private readonly ILogger<MainViewModel> _logger;
 
     private CancellationTokenSource? _scanCts;
+    // Incremented whenever a scan replaces the in-memory result set. A
+    // database load that started before that replacement must not clear the
+    // newer scan results when its asynchronous queries finish.
+    private int _dataVersion;
 
     public MainViewModel(
         IPhotoScanner scanner,
@@ -551,10 +555,25 @@ public sealed partial class MainViewModel : ObservableObject
     /// </summary>
     public async Task LoadFromDatabaseAsync(CancellationToken ct = default)
     {
+        var loadVersion = Volatile.Read(ref _dataVersion);
+
         try
         {
             var dbGroups = await _groupRepo.GetAllAsync(ct);
             var dbPhotos = await _photoRepo.GetAllAsync(ct);
+
+            // The page loads persisted data asynchronously during startup. If
+            // the user starts a scan while those queries are in flight, the
+            // scan owns the in-memory collections now. Applying this stale
+            // snapshot would clear the freshly scanned photos and leave empty
+            // group rows on screen.
+            if (loadVersion != Volatile.Read(ref _dataVersion))
+            {
+                _logger.LogDebug(
+                    "Skipping stale database load (version {LoadVersion}, current {CurrentVersion})",
+                    loadVersion, Volatile.Read(ref _dataVersion));
+                return;
+            }
 
             AllPhotos.Clear();
             Groups.Clear();
@@ -625,6 +644,7 @@ public sealed partial class MainViewModel : ObservableObject
     {
         if (string.IsNullOrEmpty(SelectedDirectory)) return;
 
+        Interlocked.Increment(ref _dataVersion);
         _scanCts = new CancellationTokenSource();
         IsScanning = true;
         var started = DateTime.Now;
