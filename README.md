@@ -22,23 +22,132 @@ Everything runs **100% locally**. No cloud uploads, no subscriptions, no API key
 | SHA-256 | Exact duplicate detection |
 | pHash (DCT) | Visually similar photos |
 | dHash | Fast pre-filter for similarity |
-| Time window + pHash | Burst-shot grouping |
+| Capture context + ORB / RANSAC | Burst-shot verification |
+| BK-Tree + Union-Find | Similarity search and grouping |
+
+#### Exact duplicate detection
+
+PhotoCuller reads each file in 64 KB chunks and computes its **SHA-256** hash.
+Files with the same SHA-256 digest are byte-for-byte identical, so they are
+placed in the same exact-duplicate group even when their names or directories
+differ. Photos assigned to an exact-duplicate group are excluded from the later
+visual-grouping pass.
+
+#### Similar photo detection
+
+Burst shots and resized, recompressed, or lightly edited images normally have
+different file hashes. PhotoCuller therefore computes two additional 64-bit
+perceptual hashes:
+
+- **pHash** converts the image to 32×32 grayscale, applies a DCT, and builds a
+  hash from the top-left 8×8 low-frequency block. It primarily represents the
+  image's broad visual structure.
+- **dHash** resizes the image to 9×8 and compares adjacent pixel intensities in
+  each row. It represents the direction of brightness changes in the image.
+
+Hashes are compared by Hamming distance: the number of different bits. A
+smaller distance indicates a closer visual match. Photos from different
+directories or capture periods must pass strict thresholds for both pHash and
+dHash before a similarity edge is created.
+
+```text
+Source image
+ ├─ pHash: compare broad composition
+ └─ dHash: compare intensity changes
+                    ↓
+          both thresholds pass
+                    ↓
+          similar-photo candidate
+```
+
+#### Burst-shot verification
+
+Small subject or camera movements can make adjacent burst frames fail strict
+hash thresholds. PhotoCuller uses the more tolerant thresholds only when the
+photos share a directory, have nearby capture times, and have compatible
+sequential filenames. When numeric suffixes are present, the filename prefixes
+must match and the sequence numbers may differ by at most one.
+
+These candidates are then verified with **ORB local features and RANSAC
+geometry**. ORB extracts repeatable corners and texture descriptors from both
+images; RANSAC checks whether their matched points support a consistent spatial
+transformation. The pair is accepted as the same scene only when the match
+count, inlier ratio, and image coverage all pass their required minimums. This
+reduces false matches between images with similar colours or composition but
+different subjects.
+
+The three search presets use different thresholds. **Strict** prioritises fewer
+false groups, **Balanced** trades precision against recall, and **Loose** covers
+a longer capture window and larger visual changes.
+
+#### Building groups from similarity edges
+
+A **BK-Tree** searches perceptual hashes by Hamming distance, avoiding a full
+all-pairs comparison across the photo library. Each photo is then treated as a
+graph node, and every accepted pair becomes an edge. A path-compressed,
+union-by-rank **Union-Find** collects connected nodes into candidate groups:
+
+```text
+Photo A ──similar── Photo B ──similar── Photo C
+                              ↓
+                       one candidate group
+```
+
+PhotoCuller then checks the first, last, and adjacent members and splits
+incoherent components. This prevents a similarity chain where A resembles B
+and B resembles C, but A and C no longer represent the same scene.
+
+A group is labelled as a burst only when all members form a time-ordered
+sequence captured at roughly two-second intervals and every adjacent pair also
+passes the strict pHash and dHash checks. Other same-scene clusters are labelled
+similar. A manual keep choice always takes priority; otherwise, the photo with
+the highest overall quality score is recommended, with resolution as a
+tiebreaker. All remaining photos are marked for review rather than deleted
+automatically.
 
 ### ⭐ Quality Scoring (0–100)
 
-All scoring is **algorithm-based** using OpenCvSharp — no model download or GPU required.
+The baseline technical score uses **traditional computer-vision algorithms
+implemented through OpenCvSharp**; it does not require a trained model, a model
+download, or a GPU. OpenCvSharp is the .NET wrapper around OpenCV that supplies
+the underlying image operations. It is a library, not an AI model.
 
-| Dimension | Weight | Algorithm | Notes |
-|-----------|--------|-----------|-------|
-| **Sharpness** | 35% | Laplacian variance | Primary differentiator in a burst group |
-| **Exposure** | 20% | HSV V-channel histogram; penalises crushed blacks >15% and blown highlights >15% | Ideal mean brightness: 90–200 |
-| **Contrast** | 15% | Grayscale standard deviation | Ideal stddev: 35–90 |
-| **Noise** | 10% | Placeholder returning 70 — interface reserved for wavelet estimator | Will be replaced in a future release |
-| **Resolution** | 10% | Total megapixel count on a logarithmic scale | <0.5 MP → low; ≥8 MP → high |
-| **Composition** | 10% | Placeholder returning 65 — interface reserved for SAMP-Net | Will be replaced in a future release |
-| **Colour** | 0% | HSV S-channel mean saturation | Off by default; raise weight in Settings |
+| Dimension | Default weight | Current calculation | Status |
+|-----------|---------------:|---------------------|--------|
+| **Sharpness** | 35% | Load grayscale, apply the OpenCV Laplacian, calculate response variance `v`, then map with `100 × v / (v + 500)` | Implemented |
+| **Exposure** | 20% | Build a 256-bin histogram of the HSV V channel. Mean brightness from 85–200 starts at 100; lower/higher means reduce the score. Pixels in 0–15 or 240–255 incur an extra penalty when either share exceeds 15% | Implemented |
+| **Contrast** | 15% | Standard deviation `s` of grayscale values: below 20 maps to 0–60, 20–75 maps to 60–100, 75–90 scores 100, and values above 90 are gradually penalised | Implemented |
+| **Noise** | 10% | Fixed neutral score of 70 | **Placeholder**; no noise measurement yet |
+| **Resolution** | 10% | Piecewise mapping of `width × height`: <0.5 MP → 0–30, 0.5–2 MP → 30–70, 2–8 MP → 70–95, 8–24 MP → 95–100, and ≥24 MP → 100 | Implemented without OpenCV |
+| **Composition** | 10% | Fixed score of 65 | **Placeholder**; no composition measurement yet |
+| **Colour** | 0% | Mean of the HSV S channel: low saturation scores lower, 140–180 scores 100, and values above 180 are gradually penalised as possible oversaturation | Implemented; disabled by default weight |
 
-Default weights sum to **100**. All weights are adjustable in Settings → Scoring Weights.
+The technical score is the weighted mean of every available implemented value.
+If an analyzer fails and returns `null`, the remaining weights are re-normalised.
+Default technical weights sum to **100** and can be changed in Settings →
+Scoring Weights.
+
+When local aesthetic scoring is enabled, the final score becomes:
+
+```text
+overall = technical × (1 - blend) + aesthetic × blend
+```
+
+For example, the recommended 25% blend keeps 75% of the technical score and
+adds 25% of the local model score. Aesthetic scoring does **not** participate in
+duplicate/similar detection or group construction, but it can affect the final
+ranking because the highest overall score is recommended within each group.
+
+OpenCV/OpenCvSharp is used for image decoding, resize and colour conversion,
+DCT-based pHash, dHash preprocessing, Laplacian sharpness, HSV statistics, ORB
+features, descriptor matching, RANSAC homography verification, and aesthetic
+model preprocessing. SHA-256 uses .NET cryptography; resolution uses stored
+dimensions; BK-Tree and Union-Find are implemented in this repository; ONNX
+Runtime performs model inference.
+
+These are practical no-reference heuristics, not universal measurements of
+photographic merit. The thresholds and 0–100 mapping curves are PhotoCuller
+design choices and still need calibration against broader real-world datasets.
 
 ### 🗂️ Safe File Management
 - Moves photos to a **pending-delete folder** — never permanently deletes originals
@@ -48,7 +157,8 @@ Default weights sum to **100**. All weights are adjustable in Settings → Scori
 
 ### 🤖 AI Model Management
 
-The current scoring is **100% algorithm-based** — no AI model is required for the core workflow. The AI layer is an optional enhancement:
+The current scoring uses **traditional computer-vision algorithms** — no AI
+model is required for the core workflow. The AI layer is an optional enhancement:
 
 | Layer | Technology | When needed |
 |-------|-----------|-------------|
@@ -262,6 +372,49 @@ PhotoCuller/
 - [ ] Cloud AI photo descriptions via configured model
 - [x] Export report (CSV)
 - [ ] RAW format support (CR2, NEF, ARW, …)
+
+---
+
+## Technical References & Acknowledgements
+
+PhotoCuller does not delegate its workflow to another photo-culling engine. Its
+thresholds, 0–100 score mappings, multi-stage matching policy, coherent-group
+splitting, and score blending are project-specific implementations. It does,
+however, build on established algorithms, libraries, papers, and open-source
+model work:
+
+- **OpenCV / OpenCvSharp** — image decoding and transforms, histograms,
+  Laplacian, DCT, ORB descriptors, matching, and RANSAC homography. See the
+  [OpenCV documentation](https://docs.opencv.org/4.x/) and the
+  [OpenCvSharp repository](https://github.com/shimat/opencvsharp).
+- **Perceptual hashing** — the DCT-based pHash design follows the technique
+  described in Christoph Zauner's
+  [Implementation and Benchmarking of Perceptual Image Hash Functions](https://www.phash.org/docs/pubs/thesis_zauner.pdf).
+  The adjacent-pixel difference hash follows Neal Krawetz's
+  [dHash description](https://www.hackerfactor.com/blog/index.php?/archives/529-Kind-of-Like-That.html).
+- **ORB and RANSAC** — ORB originates from Rublee et al.,
+  [ORB: An efficient alternative to SIFT or SURF](https://doi.org/10.1109/ICCV.2011.6126544).
+  Robust geometric verification follows the RANSAC method introduced by
+  Fischler and Bolles in
+  [Random Sample Consensus](https://doi.org/10.1145/358669.358692).
+- **BK-Tree and Union-Find** — metric search is based on Burkhard and Keller's
+  [Some Approaches to Best-Match File Searching](https://scholarship.claremont.edu/hmc_fac_pub/170/).
+  The grouping implementation uses union by rank and path compression, as
+  analysed by Tarjan in
+  [Efficiency of a Good But Not Linear Set Union Algorithm](https://doi.org/10.1145/321879.321884).
+- **Local aesthetic model** — the recommended export combines
+  [OpenCLIP](https://github.com/mlfoundations/open_clip) ViT-L/14 with an MLP
+  head compatible with Christoph Schuhmann's
+  [improved-aesthetic-predictor](https://github.com/christophschuhmann/improved-aesthetic-predictor)
+  approach. The earlier
+  [LAION aesthetic predictor](https://github.com/LAION-AI/aesthetic-predictor)
+  is also an important upstream reference. Inference uses
+  [ONNX Runtime](https://onnxruntime.ai/docs/).
+
+Runtime and test dependencies are declared in
+[`Directory.Packages.props`](Directory.Packages.props). Upstream libraries,
+model weights, and datasets retain their own licences and terms; verify those
+terms before redistributing an exported model or third-party weights.
 
 ---
 
