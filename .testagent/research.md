@@ -1,5 +1,32 @@
 # Test Generation Research
 
+## 2026-09-04 Application Engine Refactor
+
+### Bounded target inventory
+- `src/PhotoCuller.Application/Analysis/PhotoAnalysisEngine.cs`: UI-independent orchestration of scan, thumbnail, hash, score, group, and report stages.
+- `src/PhotoCuller.Application/Contracts/PhotoAnalysisReportFactory.cs`: stable client-contract mapping, including errors, quality dimensions, timestamps, and group membership.
+- `src/PhotoCuller.Infrastructure/Scanning/PhotoScanner.cs`: the existing source of supported-extension filtering; included only for the unsupported-file acceptance boundary.
+- Planned tests: `src/PhotoCuller.Tests/ApplicationTests/PhotoAnalysisEngineTests.cs` and `src/PhotoCuller.Tests/InfrastructureTests/PhotoScannerTests.cs`.
+
+### Existing conventions
+- SDK-style .NET 10 test project using xUnit 2.9.3, FluentAssertions 7.2.0, and NSubstitute 5.3.0.
+- Tests use `Method_Condition_ExpectedResult` names, Arrange/Act/Assert structure, and small temporary-directory fixtures for filesystem boundaries.
+- `PhotoCuller.Tests.csproj` already references Application, Core, and Infrastructure and includes test files through SDK globbing.
+
+### Acceptance checklist
+- `pipeline orchestration/order/results`: prove the two-item sequence is scan -> thumbnail -> SHA-256 -> pHash for each item, then batch score -> group, and prove the returned domain collections are the exact processed instances.
+- `empty input`: prove scoring and grouping receive empty collections and both domain and report results remain empty.
+- `corrupted-item propagation if representable with mocks`: model a scanner-produced `PhotoItem.ErrorMessage` and prove the Engine and serialized report retain it while nullable hashes/scores remain nullable.
+- `unsupported files (scanner integration or documented existing behavior)`: exercise the real `PhotoScanner` extension filter with one supported image path and one `.txt` path; only the supported path may reach repository filtering, metadata, and output.
+- `CancellationToken propagation`: prove one caller token reaches scanner, thumbnail, both hash services, scoring, and grouping; prove pre-cancellation stops before dependency work. Scanner-progress reading intentionally receives a linked token so the Engine can stop its forwarding task after scanning.
+- `stable report version/mapping`: prove version `1.0` and the complete photo/quality/group contract mapping, including UTC treatment of an unspecified capture timestamp.
+
+### Static source-to-test pairing
+- Required Roslyn analyzer run: 133 source files, 10 test files, 21 paired and 112 unpaired before this change.
+- `PhotoAnalysisReport.cs` was explicitly unpaired, with suggested path `src/PhotoCuller.Tests/Contracts/PhotoAnalysisReportTests.cs`; the public contract will be covered through `PhotoAnalysisEngineTests` because the factory is internal and the Engine is its supported entry point.
+- `PhotoAnalysisEngine.cs`, `PhotoAnalysisReportFactory.cs`, and `PhotoScanner.cs` were unpaired in the full analyzer result (only the top 30 unpaired sources were printed).
+- This is a static symbol-pairing heuristic, not line or branch coverage evidence.
+
 ## Project Overview
 - Path: `D:\Dev\Personal\PhotoCuller`
 - Language/runtime: C# on .NET 10 (`global.json` SDK 10.0.203)

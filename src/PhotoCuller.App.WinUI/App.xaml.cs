@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.UI.Xaml;
+using PhotoCuller.Application.Analysis;
 using PhotoCuller.App.WinUI.Services;
 using PhotoCuller.App.WinUI.ViewModels;
 using PhotoCuller.App.WinUI.Views;
@@ -12,7 +13,7 @@ using Serilog;
 
 namespace PhotoCuller.App.WinUI;
 
-public partial class App : Application
+public partial class App : Microsoft.UI.Xaml.Application
 {
     private IHost? _host;
     private MainWindow? _mainWindow;
@@ -130,6 +131,7 @@ public partial class App : Application
                 Directory.CreateDirectory(Path.GetDirectoryName(dbPath)!);
 
                 services.AddInfrastructure(dbPath);
+                services.AddTransient<IPhotoAnalysisEngine, PhotoAnalysisEngine>();
                 services.AddOptions<AppSettings>();
 
                 services.AddSingleton<MainWindow>(sp =>

@@ -1,5 +1,44 @@
 # Test Generation Status
 
+## 2026-09-04 Application Engine Refactor
+
+### Outcome
+- Status: complete.
+- Test-gap verdict: **Strong** for the six requested acceptance outcomes. Exact order, empty collections, per-item error retention, unsupported-extension exclusion, cancellation-token identity, pre-cancel short circuit, and full report mapping are all caller-visible assertions.
+- Residual lower-risk branches outside this request: option validation, thumbnail-disabled operation, and scanner-progress relay details. None weakens the requested Engine/CLI acceptance boundary.
+- No production code was changed for testability.
+
+### Requirement-to-test map
+| Requirement | Evidence |
+|---|---|
+| `pipeline orchestration/order/results` | `PhotoCuller.Tests.ApplicationTests.PhotoAnalysisEngineTests.AnalyzeAsync_TwoPhotos_RunsPipelineInRequiredOrderAndReturnsProcessedObjects` |
+| `empty input` | `PhotoCuller.Tests.ApplicationTests.PhotoAnalysisEngineTests.AnalyzeAsync_EmptyScan_ScoresAndGroupsEmptyInputAndReturnsEmptyRun` |
+| `corrupted-item propagation if representable with mocks` | `PhotoCuller.Tests.ApplicationTests.PhotoAnalysisEngineTests.AnalyzeAsync_CorruptedPhoto_PreservesErrorInRunAndReport` |
+| `unsupported files (scanner integration or documented existing behavior)` | `PhotoCuller.Tests.InfrastructureTests.PhotoScannerTests.ScanAsync_SupportedAndUnsupportedFiles_YieldsOnlySupportedFile` |
+| `CancellationToken propagation` | `PhotoCuller.Tests.ApplicationTests.PhotoAnalysisEngineTests.AnalyzeAsync_ActiveCancellationToken_PropagatesSameTokenToEveryStage`; `PhotoCuller.Tests.ApplicationTests.PhotoAnalysisEngineTests.AnalyzeAsync_PreCancelledToken_StopsBeforeStartingPipeline` |
+| `stable report version/mapping` | `PhotoCuller.Tests.ApplicationTests.PhotoAnalysisEngineTests.AnalyzeAsync_CompletedRun_MapsStableReportContract` |
+
+### Pseudo-mutation review
+- Removing or reordering any per-photo pipeline stage changes the exact event ledger or processed fields in the two-photo test.
+- Skipping score/group work for an empty scan leaves the captured collaborator arguments null and fails the empty-input test.
+- Dropping `PhotoItem.ErrorMessage`, quality nullability, or photo identity from report mapping fails the corrupted-item test.
+- Allowing arbitrary extensions causes `.txt` to reach repository/metadata/output and fails three independent negative/collection assertions.
+- Replacing the caller token at any core stage fails an exact NSubstitute argument verification; removing the initial cancellation guard causes the scanner call verification to fail.
+- Changing version `1.0`, any photo quality field, recommendation, timestamp conversion, or group membership fails literal/deep mapping assertions.
+
+### Assertion-quality review
+- New tests reviewed: 7.
+- Assertion-free tests: 0; trivial-only tests: 0; self-referential tests: 0.
+- Meaningful categories present: equality, collection, null, exception, comparison/ordering, negative, state/side-effect, and structural/deep.
+- Mock-call checks use exact object/token/path arguments, not call-count-only assertions. The filesystem boundary asserts both inclusion of `.JPG` and exclusion of `.txt` at candidate, metadata, and output surfaces.
+
+### Validation evidence
+- Scoped build: `dotnet build src/PhotoCuller.Tests/PhotoCuller.Tests.csproj --no-restore -v:q` -> exit 0, 0 errors (repository warnings remain).
+- Narrow tests: `dotnet test src/PhotoCuller.Tests/PhotoCuller.Tests.csproj --no-build -v:q --filter "FullyQualifiedName~PhotoAnalysisEngineTests|FullyQualifiedName~PhotoScannerTests"` -> Passed 7, Failed 0, Skipped 0.
+- Full test project: `dotnet test src/PhotoCuller.Tests/PhotoCuller.Tests.csproj --no-build -v:q` -> Passed 81, Failed 0, Skipped 0.
+- Solution discovery: `dotnet test PhotoCuller.slnx --list-tests --no-build -v:q` -> exit 0 and lists all 7 new tests by fully qualified name.
+- Non-incremental solution build: `dotnet build PhotoCuller.slnx --no-incremental --no-restore -v:q` -> exit 0, 0 errors (187 repository warnings remain).
+
 ## Outcome
 - Status: complete
 - Scope verdict: **Strong**. The caller-visible allow/reject branches, decode failure, cancellation, input order, and cache refresh behavior are all protected by focused assertions.

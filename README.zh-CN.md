@@ -13,7 +13,7 @@ PhotoCuller 是一款本地照片优选工具，专为 Windows 设计。它扫�
 ### 🔍 智能扫描
 - 递归扫描本地目录，支持 JPEG、PNG、HEIC、WEBP、BMP、TIFF
 - 读取 EXIF 元数据（拍摄时间、尺寸）
-- 增量扫描——未变化的文件在重新扫描时自动跳过
+- 已具备文件变更检测基础；当前 WinUI 扫描路径仍执行全量重扫
 - 生成并缓存缩略图，加快浏览速度
 
 ### 🔗 重复与相似检测
@@ -252,8 +252,18 @@ $msbuild = & "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.e
 
 ```powershell
 dotnet test src\PhotoCuller.Tests\PhotoCuller.Tests.csproj --configuration Debug
-# 预期结果：50 个测试，50 个通过
 ```
+
+### 使用 CLI
+
+CLI 与 WinUI 调用同一个 `PhotoAnalysisEngine`。默认把版本化 JSON 写到标准输出：
+
+```powershell
+dotnet run --project src\PhotoCuller.Cli -- analyze "D:\Photos\Test"
+dotnet run --project src\PhotoCuller.Cli -- analyze "D:\Photos\Test" --output result.json
+```
+
+当前 CLI 显式携带 Windows OpenCV native runtime；Core 与 Application 本身不受该 runtime 约束。
 
 ---
 
@@ -267,6 +277,10 @@ PhotoCuller/
 │   │   ├── Enums/                      # RecommendationStatus, GroupType …
 │   │   ├── Interfaces/                 # 所有服务契约（平台无关）
 │   │   └── Scoring/                    # ScoringWeights 值对象
+│   │
+│   ├── PhotoCuller.Application/        # UI 无关的分析用例与稳定结果协议
+│   │   ├── Analysis/                   # PhotoAnalysisEngine、运行选项
+│   │   └── Contracts/                  # 版本化 JSON DTO
 │   │
 │   ├── PhotoCuller.Infrastructure/     # 具体实现
 │   │   ├── Database/                   # EF Core DbContext、迁移、初始化器
@@ -284,6 +298,8 @@ PhotoCuller/
 │   │   ├── Converters/                 # XAML 值转换器
 │   │   └── Services/                   # 平台服务实现
 │   │
+│   ├── PhotoCuller.Cli/                # 调用同一 Engine 的命令行客户端
+│   │
 │   └── PhotoCuller.Tests/              # xUnit + FluentAssertions + NSubstitute
 │       ├── CoreTests/                  # 评分权重、pHash、相似度、分组
 │       └── InfrastructureTests/        # 文件移动、设置持久化
@@ -298,9 +314,11 @@ PhotoCuller/
 ## 架构原则
 
 - **`PhotoCuller.Core` 零 Windows/UI 依赖** — 所有平台能力通过接口注入
+- **单一 Application Engine** — WinUI 与 CLI 复用扫描、哈希、评分、分组流水线
+- **native runtime 由客户端选择** — Infrastructure 只引用 OpenCvSharp managed API
 - **EF Core 默认 NoTracking** — 读多写少场景；写操作显式调用 `Update()`
 - **SQLite WAL 模式** — 后台扫描写入不阻塞 UI 读取
-- **流式扫描管道** — `IAsyncEnumerable<PhotoItem>` 让 UI 边扫描边显示结果
+- **流式扫描输入** — Engine 通过 `IAsyncEnumerable<PhotoItem>` 逐张完成元数据、缩略图与哈希阶段
 - **Channel 进度推送** — `IScanProgressService` 用 `System.Threading.Channels` 保证线程安全
 - **Union-Find 分组** — 路径压缩 + 按秩合并，近线性时间复杂度
 

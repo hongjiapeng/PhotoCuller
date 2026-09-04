@@ -1,5 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
     <OutputType>Library</OutputType>
     <RootNamespace>PhotoCuller.Infrastructure</RootNamespace>
     <AssemblyName>PhotoCuller.Infrastructure</AssemblyName>
@@ -26,7 +27,6 @@
     </PackageReference>
     <PackageReference Include="SixLabors.ImageSharp" />
     <PackageReference Include="OpenCvSharp4" />
-    <PackageReference Include="OpenCvSharp4.runtime.win" />
     <PackageReference Include="MetadataExtractor" />
     <PackageReference Include="Microsoft.ML.OnnxRuntime" />
     <PackageReference Include="Serilog" />

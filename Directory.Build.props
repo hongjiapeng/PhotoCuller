@@ -1,7 +1,7 @@
 <Project>
   <PropertyGroup>
     <!-- Target framework -->
-    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
@@ -21,8 +21,4 @@
     <AnalysisLevel>latest-recommended</AnalysisLevel>
   </PropertyGroup>
 
-  <!-- Core / Infrastructure: no Windows UI dependency -->
-  <PropertyGroup Condition="$(MSBuildProjectName.Contains('.Core')) Or $(MSBuildProjectName.Contains('.Infrastructure')) Or $(MSBuildProjectName.Contains('.Tests'))">
-    <TargetFramework>net10.0</TargetFramework>
-  </PropertyGroup>
 </Project>

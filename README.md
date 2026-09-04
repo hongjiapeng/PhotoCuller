@@ -13,7 +13,7 @@ Everything runs **100% locally**. No cloud uploads, no subscriptions, no API key
 ### 🔍 Smart Scanning
 - Recursively scans local directories for JPEG, PNG, HEIC, WEBP, BMP, TIFF
 - Reads EXIF metadata (capture time, dimensions)
-- Incremental scanning — unchanged files are skipped on re-scan
+- File-change detection is implemented; the current WinUI workflow still performs a full rescan
 - Thumbnail generation and caching for fast browsing
 
 ### 🔗 Duplicate & Similar Detection
@@ -280,8 +280,18 @@ Or open `PhotoCuller.slnx` in Visual Studio 2026, set `PhotoCuller.App.WinUI` as
 
 ```powershell
 dotnet test src\PhotoCuller.Tests\PhotoCuller.Tests.csproj --configuration Debug
-# Expected: 50 tests, 50 passed
 ```
+
+### Use the CLI
+
+The CLI and WinUI client call the same `PhotoAnalysisEngine`. By default the CLI writes a versioned JSON report to standard output:
+
+```powershell
+dotnet run --project src\PhotoCuller.Cli -- analyze "D:\Photos\Test"
+dotnet run --project src\PhotoCuller.Cli -- analyze "D:\Photos\Test" --output result.json
+```
+
+The current CLI explicitly carries the Windows OpenCV native runtime; Core and Application do not depend on that runtime.
 
 ---
 
@@ -295,6 +305,10 @@ PhotoCuller/
 │   │   ├── Enums/                      # RecommendationStatus, GroupType, …
 │   │   ├── Interfaces/                 # All service contracts (platform-agnostic)
 │   │   └── Scoring/                    # ScoringWeights value object
+│   │
+│   ├── PhotoCuller.Application/        # UI-independent use case and stable result contract
+│   │   ├── Analysis/                   # PhotoAnalysisEngine and run options
+│   │   └── Contracts/                  # Versioned JSON DTOs
 │   │
 │   ├── PhotoCuller.Infrastructure/     # Implementations
 │   │   ├── Database/                   # EF Core DbContext, migrations, initializer
@@ -312,6 +326,8 @@ PhotoCuller/
 │   │   ├── Converters/                 # Value converters for XAML
 │   │   └── Services/                   # Platform service implementations
 │   │
+│   ├── PhotoCuller.Cli/                # Command-line client using the same Engine
+│   │
 │   └── PhotoCuller.Tests/              # xUnit + FluentAssertions + NSubstitute
 │       ├── CoreTests/                  # ScoringWeights, pHash, similarity, grouping
 │       └── InfrastructureTests/        # FileMoveService, SettingsRepository
@@ -326,9 +342,11 @@ PhotoCuller/
 ## Architecture Principles
 
 - **`PhotoCuller.Core` has zero Windows or UI dependencies** — all platform capabilities are injected via interfaces
+- **One Application Engine** — WinUI and CLI share the scan, hash, scoring, and grouping pipeline
+- **Clients select native runtimes** — Infrastructure references only the OpenCvSharp managed API
 - **EF Core with NoTracking default** — read-heavy workload; opt-in tracking for writes
 - **SQLite with WAL mode** — concurrent background writes don't block the UI
-- **Streaming scan pipeline** — `IAsyncEnumerable<PhotoItem>` lets the UI display results as they arrive
+- **Streaming scan input** — the Engine processes metadata, thumbnail, and hash stages through `IAsyncEnumerable<PhotoItem>`
 - **Channel-based progress** — `IScanProgressService` uses `System.Threading.Channels` for thread-safe progress reporting
 - **Union-Find grouping** — O(α·n) near-linear grouping with path compression
 

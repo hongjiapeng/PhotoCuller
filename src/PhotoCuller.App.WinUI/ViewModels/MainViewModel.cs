@@ -1,12 +1,10 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
+using PhotoCuller.Application.Analysis;
 using PhotoCuller.Core.Enums;
 using PhotoCuller.Core.Interfaces.FileOps;
-using PhotoCuller.Core.Interfaces.Hashing;
 using PhotoCuller.Core.Interfaces.Platform;
-using PhotoCuller.Core.Interfaces.Scanning;
-using PhotoCuller.Core.Interfaces.Scoring;
 using PhotoCuller.Core.Interfaces.Storage;
 using PhotoCuller.Core.Models;
 using System.Collections.ObjectModel;
@@ -15,20 +13,14 @@ namespace PhotoCuller.App.WinUI.ViewModels;
 
 public sealed partial class MainViewModel : ObservableObject
 {
-    private readonly IPhotoScanner _scanner;
-    private readonly IPhotoScoringService _scoring;
-    private readonly IDuplicateGroupingService _grouping;
+    private readonly IPhotoAnalysisEngine _analysisEngine;
     private readonly IPhotoRepository _photoRepo;
     private readonly IPhotoGroupRepository _groupRepo;
-    private readonly IThumbnailService _thumbnails;
-    private readonly IHashService _hash;
-    private readonly IPerceptualHashService _pHash;
     private readonly ISettingsRepository _settings;
     private readonly IFileMoveService _fileMover;
     private readonly IUndoService _undo;
     private readonly IFileDialogService _fileDialog;
     private readonly INotificationService _notifications;
-    private readonly IScanProgressService _scanProgressService;
     private readonly ILogger<MainViewModel> _logger;
 
     private CancellationTokenSource? _scanCts;
@@ -38,36 +30,24 @@ public sealed partial class MainViewModel : ObservableObject
     private int _dataVersion;
 
     public MainViewModel(
-        IPhotoScanner scanner,
-        IPhotoScoringService scoring,
-        IDuplicateGroupingService grouping,
+        IPhotoAnalysisEngine analysisEngine,
         IPhotoRepository photoRepo,
         IPhotoGroupRepository groupRepo,
-        IThumbnailService thumbnails,
-        IHashService hash,
-        IPerceptualHashService pHash,
         ISettingsRepository settings,
         IFileMoveService fileMover,
         IUndoService undo,
         IFileDialogService fileDialog,
         INotificationService notifications,
-        IScanProgressService scanProgressService,
         ILogger<MainViewModel> logger)
     {
-        _scanner              = scanner;
-        _scoring              = scoring;
-        _grouping             = grouping;
+        _analysisEngine       = analysisEngine;
         _photoRepo            = photoRepo;
         _groupRepo            = groupRepo;
-        _thumbnails           = thumbnails;
-        _hash                 = hash;
-        _pHash                = pHash;
         _settings             = settings;
         _fileMover            = fileMover;
         _undo                 = undo;
         _fileDialog           = fileDialog;
         _notifications        = notifications;
-        _scanProgressService  = scanProgressService;
         _logger               = logger;
     }
 
@@ -662,80 +642,19 @@ public sealed partial class MainViewModel : ObservableObject
             await _groupRepo.DeleteAllAsync(_scanCts.Token);
             await _photoRepo.DeleteAllAsync(_scanCts.Token);
 
-            // ── Phase 1: scan + metadata + hashes ────────────────────────────
-            // Use a separate CTS for the progress listener so we can cancel it
-            // independently when the scanner finishes (otherwise ReadAllAsync
-            // blocks forever waiting for more items in the channel).
-            using var progressCts = CancellationTokenSource
-                .CreateLinkedTokenSource(_scanCts.Token);
+            var appSettings = await _settings.LoadAsync(_scanCts.Token);
+            var analysisRun = await _analysisEngine.AnalyzeAsync(
+                SelectedDirectory,
+                PhotoAnalysisOptions.FromSettings(appSettings),
+                new Progress<ScanProgress>(progress => ScanProgress = progress),
+                _scanCts.Token);
+            allPhotos.AddRange(analysisRun.Photos);
+            var photoGroups = analysisRun.Groups;
 
-            var progressTask = Task.Run(async () =>
-            {
-                try
-                {
-                    await foreach (var p in _scanProgressService
-                        .ReadAllAsync(progressCts.Token))
-                    {
-                        ScanProgress = p;
-                    }
-                }
-                catch (OperationCanceledException) { /* expected on cancel */ }
-            }, progressCts.Token);
-
-            await foreach (var photo in _scanner.ScanAsync(SelectedDirectory, _scanCts.Token))
-            {
-                var current = allPhotos.Count + 1;
-                var total = Math.Max(_scanProgressService.Current.Total, current);
-
-                ScanProgress = new Core.Models.ScanProgress(
-                    ScanPhase.GeneratingThumbnails, current, total,
-                    CurrentFile: photo.FileName,
-                    Message: $"正在生成缩略图 {current}/{total}");
-
-                photo.ThumbnailPath  = await _thumbnails
-                    .GetOrCreateAsync(photo, cancellationToken: _scanCts.Token);
-
-                ScanProgress = new Core.Models.ScanProgress(
-                    ScanPhase.ComputingHashes, current, total,
-                    CurrentFile: photo.FileName,
-                    Message: $"正在计算哈希 {current}/{total}");
-
-                photo.Sha256Hash     = await _hash
-                    .ComputeSha256Async(photo.FilePath, _scanCts.Token);
-                photo.PerceptualHash = await _pHash
-                    .ComputePHashAsync(photo.FilePath, _scanCts.Token);
-
-                allPhotos.Add(photo);
+            foreach (var photo in allPhotos)
                 AllPhotos.Add(new PhotoItemViewModel(photo));
-            }
-
-            // Stop the progress listener now that the scanner is done
-            await progressCts.CancelAsync();
-
-            // Stop listening to progress (scanner is done)
-            _scanProgressService.Report(ScanProgress.Completed(allPhotos.Count, started.ToUniversalTime()));
 
             TotalPhotoCount = allPhotos.Count;
-
-            _logger.LogInformation(
-                "Scan phase done: {Total} photos, {WithHash} with pHash",
-                allPhotos.Count,
-                allPhotos.Count(p => p.PerceptualHash.HasValue));
-
-            // ── Phase 2: scoring ──────────────────────────────────────────────
-            ScanProgress = new Core.Models.ScanProgress(ScanPhase.Scoring, 0, allPhotos.Count);
-            var appSettings = await _settings.LoadAsync(_scanCts.Token);
-            await _scoring.ScoreRangeAsync(allPhotos, appSettings.ScoringWeights,
-                new Progress<int>(n => ScanProgress =
-                    new Core.Models.ScanProgress(ScanPhase.Scoring, n, allPhotos.Count)),
-                _scanCts.Token);
-
-            // ── Phase 3: grouping ─────────────────────────────────────────────
-            ScanProgress = new Core.Models.ScanProgress(ScanPhase.Grouping, 0, 0,
-                Message: "分组中...");
-
-            var photoGroups = await _grouping.BuildGroupsAsync(allPhotos,
-                ct: _scanCts.Token);
 
             _logger.LogInformation(
                 "Grouping done: {GroupCount} groups from {PhotoCount} photos",

@@ -252,7 +252,7 @@ public sealed partial class AiModelsPage : Page
             CornerRadius = new CornerRadius(8),
             BorderThickness = new Thickness(1),
         };
-        if (Application.Current.Resources.TryGetValue("DividerStrokeColorDefaultBrush", out var brush)
+        if (Microsoft.UI.Xaml.Application.Current.Resources.TryGetValue("DividerStrokeColorDefaultBrush", out var brush)
             && brush is Microsoft.UI.Xaml.Media.Brush borderBrush)
         {
             card.BorderBrush = borderBrush;

@@ -1,5 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
     <!--
       When building with the standalone dotnet CLI, MSBuildExtensionsPath points to the .NET SDK
       directory which does not contain the VS AppxPackage MSBuild tasks required by WinAppSDK.
@@ -52,6 +53,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\PhotoCuller.Application\PhotoCuller.Application.csproj" />
     <ProjectReference Include="..\PhotoCuller.Core\PhotoCuller.Core.csproj" />
     <ProjectReference Include="..\PhotoCuller.Infrastructure\PhotoCuller.Infrastructure.csproj" />
   </ItemGroup>
@@ -59,6 +61,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" />
+    <PackageReference Include="OpenCvSharp4.runtime.win" />
     <PackageReference Include="CommunityToolkit.Mvvm" />
     <PackageReference Include="WinUIEx" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />

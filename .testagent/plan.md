@@ -1,5 +1,25 @@
 # Test Implementation Plan
 
+## 2026-09-04 Application Engine Refactor
+
+| Requirement | Planned evidence |
+|---|---|
+| `pipeline orchestration/order/results` | `PhotoAnalysisEngineTests.AnalyzeAsync_TwoPhotos_RunsPipelineInRequiredOrderAndReturnsProcessedObjects` |
+| `empty input` | `PhotoAnalysisEngineTests.AnalyzeAsync_EmptyScan_ScoresAndGroupsEmptyInputAndReturnsEmptyRun` |
+| `corrupted-item propagation if representable with mocks` | `PhotoAnalysisEngineTests.AnalyzeAsync_CorruptedPhoto_PreservesErrorInRunAndReport` |
+| `unsupported files (scanner integration or documented existing behavior)` | `PhotoScannerTests.ScanAsync_SupportedAndUnsupportedFiles_YieldsOnlySupportedFile` |
+| `CancellationToken propagation` | `PhotoAnalysisEngineTests.AnalyzeAsync_ActiveCancellationToken_PropagatesSameTokenToEveryStage` and `PhotoAnalysisEngineTests.AnalyzeAsync_PreCancelledToken_StopsBeforeStartingPipeline` |
+| `stable report version/mapping` | `PhotoAnalysisEngineTests.AnalyzeAsync_CompletedRun_MapsStableReportContract` |
+
+### Implementation phases
+1. Add Engine unit tests with substituted collaborators and synchronous event capture for deterministic orchestration assertions.
+2. Add one bounded `PhotoScanner` filesystem integration test using a temporary directory and substituted repository/metadata collaborators.
+3. Build and run only the two new test classes during the fix loop, then run the complete test project and a non-incremental solution build once.
+4. Re-read assertions against source with pseudo-mutation and assertion-quality reviews; record findings and fixes in `.testagent/status.md`.
+
+### Scope constraint
+- Do not change production code unless a failing acceptance case exposes a minimal testability defect; notify the parent agent before such a change.
+
 ## Goal
 Prevent adjacent but semantically different photos from entering the same similar-photo group, while retaining genuinely overlapping sequential shots and existing global near-duplicate behavior.
 

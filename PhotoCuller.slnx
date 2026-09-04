@@ -7,6 +7,8 @@
     <Project Path="src/PhotoCuller.App.WinUI/PhotoCuller.App.WinUI.csproj">
       <Platform Solution="*|x64" Project="x64" />
     </Project>
+    <Project Path="src/PhotoCuller.Application/PhotoCuller.Application.csproj" />
+    <Project Path="src/PhotoCuller.Cli/PhotoCuller.Cli.csproj" />
     <Project Path="src/PhotoCuller.Core/PhotoCuller.Core.csproj">
       <Platform Solution="*|x64" Project="x64" />
     </Project>

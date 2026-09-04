@@ -1,5 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
     <OutputType>Library</OutputType>
     <RootNamespace>PhotoCuller.Tests</RootNamespace>
     <AssemblyName>PhotoCuller.Tests</AssemblyName>
@@ -8,6 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\PhotoCuller.Application\PhotoCuller.Application.csproj" />
     <ProjectReference Include="..\PhotoCuller.Core\PhotoCuller.Core.csproj" />
     <ProjectReference Include="..\PhotoCuller.Infrastructure\PhotoCuller.Infrastructure.csproj" />
   </ItemGroup>
@@ -21,5 +23,6 @@
     </PackageReference>
     <PackageReference Include="FluentAssertions" />
     <PackageReference Include="NSubstitute" />
+    <PackageReference Include="OpenCvSharp4.runtime.win" />
   </ItemGroup>
 </Project>
