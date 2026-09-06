@@ -1,0 +1,7 @@
+interface:
+  display_name: "PhotoCuller 选片"
+  short_description: "调用 PhotoCuller 分析本地照片并生成只读选片与重复分组报告"
+  default_prompt: "Use $photoculler-select-photos to analyze a local photo folder and produce a read-only culling report."
+
+policy:
+  allow_implicit_invocation: true
