@@ -17,10 +17,9 @@ namespace PhotoCuller.Infrastructure.Hashing;
 ///     Already-grouped photos are excluded from subsequent passes.
 ///
 ///   Pass 2 — Visual groups (pHash + dHash + local-feature verification)
-///     A strict global threshold finds near-duplicates across the library. A
-///     more tolerant threshold is used only when both perceptual hashes agree
-///     for adjacent filenames in the same directory and ORB features confirm
-///     shared scene geometry. Both edge types are clustered in one graph.
+///     Hash thresholds produce candidates across the library or within capture
+///     sequences. Every candidate must then pass ORB scene verification before
+///     becoming an edge in the grouping graph.
 ///
 /// After grouping, each group is assigned a recommended photo:
 ///   - If any member is ManualKeep → that one wins.
@@ -186,16 +185,17 @@ public sealed class DuplicateGroupingService : IDuplicateGroupingService
                     match.Distance,
                     differenceHashes,
                     profile);
-                var sameSequence = sequenceCandidate
+                var visualCandidate = globallySimilar || sequenceCandidate;
+                var sameScene = visualCandidate
                     && await _localFeatureMatcher.IsSameSceneAsync(
                         earlier.FilePath,
                         current.FilePath,
                         ct);
 
-                // A sequential pair uses the more tolerant hash profile, so
-                // local geometry is authoritative even when it also happens
-                // to fit the strict global hash thresholds.
-                if (sequenceCandidate ? sameSequence : globallySimilar)
+                // pHash and dHash are candidate generators only. Requiring
+                // local geometry prevents same-background, different-subject
+                // photos from being grouped across a library.
+                if (sameScene)
                 {
                     uf.Union(i, match.Index);
                     similarPairs++;

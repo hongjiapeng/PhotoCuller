@@ -504,6 +504,35 @@ public sealed class DuplicateGroupingServiceTests
     }
 
     [Fact]
+    public async Task BuildGroups_LoosePreset_GlobalHashCollision_LocalFeaturesRejectPair()
+    {
+        const string firstPath = @"D:\Photos\DSC08542.JPG";
+        const string secondPath = @"D:\Photos\DSC08528.JPG";
+        var pHash = new CountingPHash()
+            .WithDifferenceHash(firstPath, 0)
+            .WithDifferenceHash(secondPath, (1UL << 13) - 1);
+        var localFeatureMatcher = Substitute.For<ILocalFeatureMatcher>();
+        localFeatureMatcher.IsSameSceneAsync(
+                firstPath, secondPath, Arg.Any<CancellationToken>())
+            .Returns(false);
+        var sut = CreateService(
+            SimilarityPreset.Loose, pHash, localFeatureMatcher);
+        var photos = new List<PhotoItem>
+        {
+            Photo(firstPath, 0),
+            Photo(secondPath, (1UL << 10) - 1),
+        };
+
+        var groups = await sut.BuildGroupsAsync(photos);
+
+        groups.Should().BeEmpty(
+            "similar framing and background must not override a different subject");
+        photos.Should().OnlyContain(photo => photo.GroupId == null);
+        await localFeatureMatcher.Received(1).IsSameSceneAsync(
+            firstPath, secondPath, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task BuildGroups_AdvancedOverride_AllowsExplicitGlobalThreshold()
     {
         var baseTime = new DateTime(2025, 8, 30, 10, 0, 0, DateTimeKind.Utc);
