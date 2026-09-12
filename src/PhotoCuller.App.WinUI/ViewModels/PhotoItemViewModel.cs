@@ -74,6 +74,7 @@ public sealed partial class PhotoItemViewModel : ObservableObject
     [ObservableProperty] private bool _isCurrentComparePhoto;
     [ObservableProperty] private bool _isCurrentInspectPhoto;
     [ObservableProperty] private bool _isCurrentBrowseAlternative;
+    [ObservableProperty] private bool _isLibrarySelected;
 #pragma warning restore MVVMTK0045
 
     private static string FormatSize(long bytes) => bytes switch

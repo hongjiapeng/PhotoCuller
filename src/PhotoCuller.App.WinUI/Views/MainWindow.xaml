@@ -76,7 +76,10 @@
                                    Margin="8,4,0,4"/>
 
                         <!-- Each nav item: Tag drives Navigate(), count on right -->
-                        <Button Tag="all"
+                        <Button x:Name="NavAllPhotosButton"
+                                AutomationProperties.AutomationId="NavAllPhotosButton"
+                                AutomationProperties.Name="全部照片"
+                                Tag="all"
                                 HorizontalAlignment="Stretch"
                                 HorizontalContentAlignment="Stretch"
                                 Padding="8,7"

@@ -7,185 +7,418 @@
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
     <Page.Resources>
-        <conv:BoolToVisibilityConverter  x:Key="BoolToVis"/>
-        <conv:StringToVisibilityConverter x:Key="StringToVis"/>
-        <conv:ScoreConverter             x:Key="ScoreConv"/>
-        <conv:StatusToBrushConverter     x:Key="StatusBrush"/>
-        <conv:StatusToLabelConverter     x:Key="StatusLabel"/>
-        <conv:PathToImageConverter       x:Key="PathToImage"/>
-        <conv:FileSizeConverter          x:Key="SizeConv"/>
+        <ResourceDictionary>
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="PhotoInspectCanvasBrush" Color="#111111"/>
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Dark">
+                    <SolidColorBrush x:Key="PhotoInspectCanvasBrush" Color="#0C0C0C"/>
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="HighContrast">
+                    <StaticResource x:Key="PhotoInspectCanvasBrush"
+                                    ResourceKey="SystemColorWindowColorBrush"/>
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+
+            <conv:BoolToVisibilityConverter x:Key="BoolToVis"/>
+            <conv:StringToVisibilityConverter x:Key="StringToVis"/>
+            <conv:ScoreConverter x:Key="ScoreConv"/>
+            <conv:StatusToBrushConverter x:Key="StatusBrush"/>
+            <conv:StatusToLabelConverter x:Key="StatusLabel"/>
+            <conv:PathToImageConverter x:Key="PathToImage"/>
+            <conv:FileSizeConverter x:Key="SizeConv"/>
+        </ResourceDictionary>
     </Page.Resources>
 
-    <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>   <!-- toolbar -->
-            <RowDefinition Height="Auto"/>   <!-- scan progress -->
-            <RowDefinition Height="*"/>      <!-- photo grid -->
-        </Grid.RowDefinitions>
+    <Grid x:Name="Root" IsTabStop="True" KeyDown="Root_KeyDown">
+        <!-- BROWSE MODE -->
+        <Grid x:Name="BrowseView">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
 
-        <!-- ── TOOLBAR ──────────────────────────────────────── -->
-        <Grid Grid.Row="0" Padding="14,10,14,8" ColumnSpacing="8">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
+            <!-- Toolbar -->
+            <Grid Grid.Row="0" Padding="16,12,16,8" ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
 
-            <TextBlock Grid.Column="0"
-                       Style="{StaticResource SubtitleTextBlockStyle}"
-                       Text="照片库" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="0"
+                           Style="{StaticResource SubtitleTextBlockStyle}"
+                           Text="照片库"
+                           VerticalAlignment="Center"/>
 
-            <!-- Search -->
-            <AutoSuggestBox Grid.Column="1"
-                            x:Name="SearchBox"
-                            PlaceholderText="搜索文件名..."
-                            QueryIcon="Find"
-                            TextChanged="SearchBox_TextChanged"/>
+                <AutoSuggestBox x:Name="SearchBox"
+                                AutomationProperties.AutomationId="LibrarySearchBox"
+                                Grid.Column="1"
+                                PlaceholderText="搜索文件名..."
+                                QueryIcon="Find"
+                                TextChanged="SearchBox_TextChanged"/>
 
-            <!-- Filter combo -->
-            <ComboBox Grid.Column="2" x:Name="FilterCombo"
-                      Width="110" FontSize="12"
-                      SelectionChanged="FilterCombo_SelectionChanged">
-                <ComboBoxItem Content="全部"        IsSelected="True" Tag="all"/>
-                <ComboBoxItem Content="建议保留"    Tag="keep"/>
-                <ComboBoxItem Content="待确认"      Tag="review"/>
-                <ComboBoxItem Content="重复照片"    Tag="duplicate"/>
-                <ComboBoxItem Content="低质量"      Tag="low"/>
-            </ComboBox>
+                <ComboBox x:Name="FilterCombo"
+                          AutomationProperties.AutomationId="LibraryFilterCombo"
+                          Grid.Column="2"
+                          Width="112"
+                          SelectionChanged="FilterCombo_SelectionChanged">
+                    <ComboBoxItem Content="全部" IsSelected="True" Tag="all"/>
+                    <ComboBoxItem Content="建议保留" Tag="keep"/>
+                    <ComboBoxItem Content="待确认" Tag="review"/>
+                    <ComboBoxItem Content="重复照片" Tag="duplicate"/>
+                    <ComboBoxItem Content="低质量" Tag="low"/>
+                </ComboBox>
 
-            <!-- Sort combo -->
-            <ComboBox Grid.Column="3" x:Name="SortCombo"
-                      Width="110" FontSize="12"
-                      SelectionChanged="SortCombo_SelectionChanged">
-                <ComboBoxItem Content="按评分"   IsSelected="True" Tag="score"/>
-                <ComboBoxItem Content="按时间"   Tag="time"/>
-                <ComboBoxItem Content="按名称"   Tag="name"/>
-                <ComboBoxItem Content="按大小"   Tag="size"/>
-                <ComboBoxItem Content="错误照片" Tag="error"/>
-            </ComboBox>
+                <ComboBox x:Name="SortCombo"
+                          AutomationProperties.AutomationId="LibrarySortCombo"
+                          Grid.Column="3"
+                          Width="112"
+                          SelectionChanged="SortCombo_SelectionChanged">
+                    <ComboBoxItem Content="按评分" IsSelected="True" Tag="score"/>
+                    <ComboBoxItem Content="按时间" Tag="time"/>
+                    <ComboBoxItem Content="按名称" Tag="name"/>
+                    <ComboBoxItem Content="按大小" Tag="size"/>
+                    <ComboBoxItem Content="错误照片" Tag="error"/>
+                </ComboBox>
+
+                <Button x:Name="OpenSelectedPhotoInspectButton"
+                        AutomationProperties.AutomationId="OpenSelectedPhotoInspectButton"
+                        AutomationProperties.Name="精检查看选中照片"
+                        AutomationProperties.HelpText="也可双击照片或按 Enter"
+                        Grid.Column="4"
+                        IsEnabled="False"
+                        Content="精检查看"
+                        Click="OpenSelectedPhotoInspect_Click"/>
+            </Grid>
+
+            <!-- Scan progress -->
+            <InfoBar x:Name="ScanInfoBar"
+                     Grid.Row="1"
+                     IsOpen="False"
+                     IsClosable="False"
+                     Severity="Informational"
+                     Margin="16,0,16,8">
+                <InfoBar.Content>
+                    <Grid ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <ProgressBar x:Name="ScanBar"
+                                     Grid.Column="0"
+                                     Minimum="0"
+                                     Maximum="100"
+                                     VerticalAlignment="Center"/>
+                        <TextBlock x:Name="ScanStatusText"
+                                   Grid.Column="1"
+                                   Style="{StaticResource CaptionTextBlockStyle}"
+                                   VerticalAlignment="Center"/>
+                    </Grid>
+                </InfoBar.Content>
+            </InfoBar>
+
+            <!-- Photo grid -->
+            <GridView x:Name="PhotoGrid"
+                      AutomationProperties.AutomationId="LibraryPhotoGrid"
+                      AutomationProperties.Name="全部照片"
+                      Grid.Row="2"
+                      Padding="12,0,12,12"
+                      SelectionMode="Single"
+                      IsItemClickEnabled="True"
+                      ItemClick="PhotoGrid_ItemClick"
+                      VirtualizingStackPanel.VirtualizationMode="Recycling">
+                <GridView.ItemTemplate>
+                    <DataTemplate x:DataType="vm:PhotoItemViewModel">
+                        <Grid Width="136"
+                              Margin="4"
+                              Tag="{x:Bind Id}"
+                              ToolTipService.ToolTip="{x:Bind FileName}"
+                              DoubleTapped="PhotoCard_DoubleTapped">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="124"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <Border Grid.Row="0"
+                                    CornerRadius="{ThemeResource ControlCornerRadius}"
+                                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+                                <Grid>
+                                    <Image Source="{x:Bind ThumbnailPath, Converter={StaticResource PathToImage}}"
+                                           Stretch="UniformToFill"/>
+
+                                    <Border Background="#CC1A1A1A"
+                                            CornerRadius="{ThemeResource ControlCornerRadius}"
+                                            Visibility="{x:Bind ErrorMessage, Converter={StaticResource StringToVis}}">
+                                        <StackPanel VerticalAlignment="Center"
+                                                    HorizontalAlignment="Center"
+                                                    Spacing="4">
+                                            <FontIcon Glyph="&#xEA39;"
+                                                      FontSize="24"
+                                                      Foreground="#EF4444"/>
+                                            <TextBlock Text="分析失败"
+                                                       Style="{StaticResource CaptionTextBlockStyle}"
+                                                       Foreground="#EF4444"
+                                                       HorizontalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border VerticalAlignment="Bottom"
+                                            HorizontalAlignment="Right"
+                                            Background="#CC000000"
+                                            CornerRadius="4,0,4,0"
+                                            Padding="5,2">
+                                        <TextBlock Text="{x:Bind OverallScore, Converter={StaticResource ScoreConv}}"
+                                                   Style="{StaticResource BodyStrongTextBlockStyle}"
+                                                   Foreground="White"/>
+                                    </Border>
+
+                                    <Border VerticalAlignment="Top"
+                                            HorizontalAlignment="Left"
+                                            CornerRadius="4,0,4,0"
+                                            Padding="5,2"
+                                            Background="{x:Bind Status, Converter={StaticResource StatusBrush}}">
+                                        <TextBlock Text="{x:Bind Status, Converter={StaticResource StatusLabel}}"
+                                                   Style="{StaticResource CaptionTextBlockStyle}"
+                                                   Foreground="White"
+                                                   FontWeight="SemiBold"/>
+                                    </Border>
+
+                                    <Border BorderThickness="2"
+                                            BorderBrush="{ThemeResource AccentFillColorDefaultBrush}"
+                                            CornerRadius="{ThemeResource ControlCornerRadius}"
+                                            IsHitTestVisible="False"
+                                            Visibility="{x:Bind IsLibrarySelected, Converter={StaticResource BoolToVis}, Mode=OneWay}"/>
+                                </Grid>
+                            </Border>
+
+                            <TextBlock Grid.Row="1"
+                                       Text="{x:Bind FileName}"
+                                       Style="{StaticResource CaptionTextBlockStyle}"
+                                       Opacity="0.7"
+                                       TextTrimming="CharacterEllipsis"
+                                       Margin="2,4,2,0"/>
+                        </Grid>
+                    </DataTemplate>
+                </GridView.ItemTemplate>
+
+                <GridView.ItemContainerStyle>
+                    <Style TargetType="GridViewItem">
+                        <Setter Property="Padding" Value="0"/>
+                        <Setter Property="Margin" Value="0"/>
+                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                        <Setter Property="UseSystemFocusVisuals" Value="True"/>
+                    </Style>
+                </GridView.ItemContainerStyle>
+            </GridView>
+
+            <StackPanel x:Name="EmptyState"
+                        Grid.Row="2"
+                        VerticalAlignment="Center"
+                        HorizontalAlignment="Center"
+                        Spacing="12"
+                        Visibility="Collapsed">
+                <FontIcon Glyph="&#xEB9F;" FontSize="56" Opacity="0.25"/>
+                <TextBlock Text="暂无照片"
+                           Style="{StaticResource SubtitleTextBlockStyle}"
+                           Opacity="0.4"
+                           HorizontalAlignment="Center"/>
+                <TextBlock Text="请在左侧选择目录后开始扫描"
+                           Style="{StaticResource CaptionTextBlockStyle}"
+                           Opacity="0.3"
+                           HorizontalAlignment="Center"/>
+            </StackPanel>
         </Grid>
 
-        <!-- ── SCAN PROGRESS ────────────────────────────────── -->
-        <InfoBar Grid.Row="1"
-                 x:Name="ScanInfoBar"
-                 IsOpen="False"
-                 IsClosable="False"
-                 Severity="Informational"
-                 Margin="14,0,14,6">
-            <InfoBar.Content>
-                <Grid ColumnSpacing="10">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <ProgressBar Grid.Column="0"
-                                 x:Name="ScanBar"
-                                 Minimum="0" Maximum="100"
-                                 VerticalAlignment="Center"/>
-                    <TextBlock Grid.Column="1"
-                               x:Name="ScanStatusText"
-                               FontSize="12" VerticalAlignment="Center"/>
-                </Grid>
-            </InfoBar.Content>
-        </InfoBar>
+        <!-- INSPECT MODE -->
+        <Grid x:Name="InspectView"
+              Padding="16,12"
+              RowSpacing="12"
+              Visibility="Collapsed">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="104"/>
+            </Grid.RowDefinitions>
 
-        <!-- ── PHOTO GRID ───────────────────────────────────── -->
-        <GridView Grid.Row="2"
-                  x:Name="PhotoGrid"
-                  Padding="10,0,10,10"
-                  SelectionMode="Single"
-                  IsItemClickEnabled="True"
-                  ItemClick="PhotoGrid_ItemClick"
-                  VirtualizingStackPanel.VirtualizationMode="Recycling">
-            <GridView.ItemTemplate>
-                <DataTemplate x:DataType="vm:PhotoItemViewModel">
-                    <Grid Width="136" Margin="4" ToolTipService.ToolTip="{x:Bind FileName}">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="124"/>
-                            <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
+            <Grid Grid.Row="0" ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
 
-                        <!-- Thumbnail -->
-                        <Border Grid.Row="0" CornerRadius="6"
-                                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
-                            <Grid>
-                                <Image Source="{x:Bind ThumbnailPath,
-                                               Converter={StaticResource PathToImage}}"
-                                       Stretch="UniformToFill"/>
+                <Button x:Name="BackToLibraryButton"
+                        AutomationProperties.AutomationId="BackToLibraryButton"
+                        AutomationProperties.Name="返回全部照片"
+                        Grid.Column="0"
+                        Click="BackToLibrary_Click">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <SymbolIcon Symbol="Back"/>
+                        <TextBlock Text="返回全部照片"/>
+                    </StackPanel>
+                </Button>
 
-                                <!-- Error overlay: dim + icon when analysis failed -->
-                                <Border Background="#CC1A1A1A" CornerRadius="6"
-                                        Visibility="{x:Bind ErrorMessage,
-                                            Converter={StaticResource StringToVis}}">
-                                    <StackPanel VerticalAlignment="Center"
-                                                HorizontalAlignment="Center" Spacing="4">
-                                        <FontIcon Glyph="&#xEA39;" FontSize="24"
-                                                  Foreground="#EF4444"/>
-                                        <TextBlock Text="分析失败" FontSize="10"
-                                                   Foreground="#EF4444"
-                                                   HorizontalAlignment="Center"/>
-                                    </StackPanel>
-                                </Border>
+                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                    <TextBlock x:Name="InspectFileName"
+                               Style="{StaticResource BodyStrongTextBlockStyle}"
+                               TextTrimming="CharacterEllipsis"/>
+                    <TextBlock x:Name="InspectPhotoMeta"
+                               Style="{StaticResource CaptionTextBlockStyle}"
+                               Opacity="0.65"/>
+                </StackPanel>
 
-                                <!-- Score badge bottom-right -->
-                                <Border VerticalAlignment="Bottom"
-                                        HorizontalAlignment="Right"
-                                        Background="#CC000000"
-                                        CornerRadius="4,0,6,0"
-                                        Padding="5,2">
-                                    <TextBlock Text="{x:Bind OverallScore,
-                                                      Converter={StaticResource ScoreConv}}"
-                                               FontSize="12" FontWeight="Bold"
-                                               Foreground="White"/>
-                                </Border>
+                <TextBlock x:Name="InspectPosition"
+                           Grid.Column="2"
+                           Style="{StaticResource BodyStrongTextBlockStyle}"
+                           VerticalAlignment="Center"/>
+            </Grid>
 
-                                <!-- Status badge top-left -->
-                                <Border VerticalAlignment="Top"
-                                        HorizontalAlignment="Left"
-                                        CornerRadius="6,0,4,0"
-                                        Padding="5,2"
-                                        Background="{x:Bind Status,
-                                                     Converter={StaticResource StatusBrush}}">
-                                    <TextBlock Text="{x:Bind Status,
-                                                      Converter={StaticResource StatusLabel}}"
-                                               FontSize="10" FontWeight="SemiBold"
-                                               Foreground="White"/>
-                                </Border>
-                            </Grid>
-                        </Border>
+            <Grid Grid.Row="1">
+                <Border BorderThickness="1"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        CornerRadius="{ThemeResource OverlayCornerRadius}"
+                        Background="{ThemeResource PhotoInspectCanvasBrush}">
+                    <ScrollViewer x:Name="InspectScrollViewer"
+                                  AutomationProperties.AutomationId="PhotoInspectScrollViewer"
+                                  AutomationProperties.Name="照片精检画布"
+                                  IsTabStop="True"
+                                  HorizontalScrollBarVisibility="Auto"
+                                  VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollMode="Enabled"
+                                  VerticalScrollMode="Enabled"
+                                  HorizontalContentAlignment="Center"
+                                  VerticalContentAlignment="Center"
+                                  ZoomMode="Enabled"
+                                  MinZoomFactor="0.1"
+                                  MaxZoomFactor="8"
+                                  ViewChanged="InspectScrollViewer_ViewChanged"
+                                  PointerWheelChanged="InspectScrollViewer_PointerWheelChanged">
+                        <Grid>
+                            <Image x:Name="InspectImage"
+                                   AutomationProperties.Name="当前精检照片"
+                                   Stretch="Uniform"
+                                   ImageOpened="InspectImage_ImageOpened"
+                                   ImageFailed="InspectImage_ImageFailed"
+                                   DoubleTapped="InspectImage_DoubleTapped"/>
+                            <ProgressRing x:Name="InspectImageProgress"
+                                          Width="36"
+                                          Height="36"
+                                          IsActive="True"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"/>
+                            <TextBlock x:Name="InspectImagePlaceholder"
+                                       Text="无法加载原图"
+                                       Foreground="White"
+                                       Visibility="Collapsed"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"/>
+                        </Grid>
+                    </ScrollViewer>
+                </Border>
 
-                        <!-- Filename below -->
-                        <TextBlock Grid.Row="1"
-                                   Text="{x:Bind FileName}"
-                                   FontSize="11" Opacity="0.7"
-                                   TextTrimming="CharacterEllipsis"
-                                   Margin="2,3,2,0"/>
-                    </Grid>
-                </DataTemplate>
-            </GridView.ItemTemplate>
+                <Button x:Name="PreviousPhotoButton"
+                        AutomationProperties.AutomationId="PreviousPhotoButton"
+                        AutomationProperties.Name="上一张照片"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Center"
+                        Margin="12"
+                        Width="44"
+                        Height="56"
+                        Click="PreviousPhoto_Click">
+                    <SymbolIcon Symbol="Back"/>
+                </Button>
 
-            <GridView.ItemContainerStyle>
-                <Style TargetType="GridViewItem">
-                    <Setter Property="Padding" Value="0"/>
-                    <Setter Property="Margin"  Value="0"/>
-                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-                </Style>
-            </GridView.ItemContainerStyle>
-        </GridView>
+                <Button x:Name="NextPhotoButton"
+                        AutomationProperties.AutomationId="NextPhotoButton"
+                        AutomationProperties.Name="下一张照片"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Center"
+                        Margin="12"
+                        Width="44"
+                        Height="56"
+                        Click="NextPhoto_Click">
+                    <SymbolIcon Symbol="Forward"/>
+                </Button>
+            </Grid>
 
-        <!-- Empty state overlay -->
-        <StackPanel Grid.Row="2"
-                    x:Name="EmptyState"
-                    VerticalAlignment="Center"
-                    HorizontalAlignment="Center"
-                    Spacing="12" Visibility="Collapsed">
-            <FontIcon Glyph="&#xEB9F;" FontSize="56" Opacity="0.25"/>
-            <TextBlock Text="暂无照片" FontSize="16" Opacity="0.4"
-                       HorizontalAlignment="Center"/>
-            <TextBlock Text="请在左侧选择目录后开始扫描"
-                       FontSize="12" Opacity="0.3"
-                       HorizontalAlignment="Center"/>
-        </StackPanel>
+            <CommandBar Grid.Row="2"
+                        HorizontalAlignment="Center"
+                        DefaultLabelPosition="Right"
+                        Background="Transparent"
+                        IsOpen="False">
+                <AppBarButton AutomationProperties.AutomationId="FitPhotoButton"
+                              Label="适应窗口"
+                              Click="FitPhoto_Click"/>
+                <AppBarButton AutomationProperties.AutomationId="ActualSizePhotoButton"
+                              Label="100%"
+                              Click="ActualSizePhoto_Click"/>
+                <AppBarSeparator/>
+                <AppBarButton AutomationProperties.AutomationId="ZoomOutPhotoButton"
+                              Label="缩小"
+                              Click="ZoomOutPhoto_Click"/>
+                <AppBarElementContainer>
+                    <TextBlock x:Name="ZoomLevelText"
+                               AutomationProperties.AutomationId="ZoomLevelText"
+                               MinWidth="56"
+                               Text="100%"
+                               TextAlignment="Center"
+                               VerticalAlignment="Center"/>
+                </AppBarElementContainer>
+                <AppBarButton AutomationProperties.AutomationId="ZoomInPhotoButton"
+                              Label="放大"
+                              Click="ZoomInPhoto_Click"/>
+            </CommandBar>
+
+            <ListView x:Name="InspectFilmstrip"
+                      AutomationProperties.AutomationId="PhotoInspectFilmstrip"
+                      AutomationProperties.Name="当前照片列表"
+                      Grid.Row="3"
+                      SelectionMode="Single"
+                      IsItemClickEnabled="True"
+                      ItemClick="InspectFilmstrip_ItemClick"
+                      ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                      ScrollViewer.HorizontalScrollMode="Enabled"
+                      ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                      ScrollViewer.VerticalScrollMode="Disabled">
+                <ListView.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <ItemsStackPanel Orientation="Horizontal"/>
+                    </ItemsPanelTemplate>
+                </ListView.ItemsPanel>
+                <ListView.ItemTemplate>
+                    <DataTemplate x:DataType="vm:PhotoItemViewModel">
+                        <Grid Width="112" Margin="4,0">
+                            <Border Height="80"
+                                    CornerRadius="{ThemeResource ControlCornerRadius}"
+                                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+                                <Grid>
+                                    <Image Source="{x:Bind ThumbnailPath, Converter={StaticResource PathToImage}}"
+                                           Stretch="UniformToFill"/>
+                                    <Border VerticalAlignment="Bottom"
+                                            Background="#B0000000"
+                                            Padding="4,2">
+                                        <TextBlock Text="{x:Bind FileName}"
+                                                   Style="{StaticResource CaptionTextBlockStyle}"
+                                                   Foreground="White"
+                                                   TextTrimming="CharacterEllipsis"/>
+                                    </Border>
+                                    <Border BorderThickness="2"
+                                            BorderBrush="{ThemeResource AccentFillColorDefaultBrush}"
+                                            CornerRadius="{ThemeResource ControlCornerRadius}"
+                                            IsHitTestVisible="False"
+                                            Visibility="{x:Bind IsLibrarySelected, Converter={StaticResource BoolToVis}, Mode=OneWay}"/>
+                                </Grid>
+                            </Border>
+                        </Grid>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
+        </Grid>
     </Grid>
 </Page>
