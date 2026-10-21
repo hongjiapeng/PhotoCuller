@@ -131,11 +131,13 @@ public sealed class OnnxAestheticModelProvider : ILocalAiModelProvider, IDisposa
             throw new InvalidOperationException("Local aesthetic scoring currently supports .onnx files only.");
 
         var fullPath = Path.GetFullPath(path);
+        var file = new FileInfo(fullPath);
+        var key = FormattableString.Invariant($"{fullPath}|{file.Length}|{file.LastWriteTimeUtc.Ticks}");
         return _sessions.GetOrAdd(
-            fullPath,
-            p => new Lazy<InferenceSession>(
+            key,
+            _ => new Lazy<InferenceSession>(
                 () => new InferenceSession(
-                    p,
+                    fullPath,
                     new SessionOptions
                     {
                         GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL,

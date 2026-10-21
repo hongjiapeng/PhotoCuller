@@ -262,6 +262,10 @@ namespace PhotoCuller.Infrastructure.Database.Migrations
                         .HasMaxLength(512)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("ScoringSignature")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Sha256Hash")
                         .HasMaxLength(64)
                         .HasColumnType("TEXT");

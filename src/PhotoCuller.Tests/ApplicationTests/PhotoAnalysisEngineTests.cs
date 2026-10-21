@@ -339,6 +339,65 @@ public sealed class PhotoAnalysisEngineTests : IDisposable
                 [photoId]));
     }
 
+    [Fact]
+    public async Task AnalyzeAsync_CachedHashes_ReusesHashesAndStillGroupsFullInventory()
+    {
+        var cached = Photo("cached.jpg");
+        cached.Sha256Hash = "stored-sha";
+        cached.PerceptualHash = 73;
+        _scanner.ScanAsync(_sourceDirectory, Arg.Any<CancellationToken>())
+            .Returns(ScanPhotos([cached]));
+        ConfigureNoOpPipeline();
+
+        var result = await CreateSut().AnalyzeAsync(_sourceDirectory);
+
+        result.Photos.Should().ContainSingle().Which.Sha256Hash.Should().Be("stored-sha");
+        cached.PerceptualHash.Should().Be(73);
+        cached.AnalysisVersion.Should().Be(PhotoItem.CurrentAnalysisVersion);
+        await _hash.DidNotReceive().ComputeSha256Async(Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await _perceptualHash.DidNotReceive().ComputePHashAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await _grouping.Received(1).BuildGroupsAsync(
+            Arg.Is<IReadOnlyList<PhotoItem>>(p => p.Count == 1 && p[0].Id == cached.Id),
+            null, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task AnalyzeAsync_SizePrefilter_HashesOnlyRepeatedSizesAndRetainsUniquePhotos()
+    {
+        var first = Photo("first.jpg"); first.FileSize = 1024;
+        var second = Photo("second.jpg"); second.FileSize = 1024;
+        var unique = Photo("unique.jpg"); unique.FileSize = 4096;
+        _scanner.ScanAsync(_sourceDirectory, Arg.Any<CancellationToken>())
+            .Returns(ScanPhotos([first, second, unique]));
+        ConfigureNoOpPipeline();
+        _hash.ComputeSha256Async(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns("same-content");
+
+        var result = await CreateSut().AnalyzeAsync(_sourceDirectory,
+            new PhotoAnalysisOptions { ComputeAllFileHashes = false });
+
+        result.Photos.Should().HaveCount(3);
+        first.Sha256Hash.Should().Be("same-content");
+        second.Sha256Hash.Should().Be("same-content");
+        unique.Sha256Hash.Should().BeNull();
+        await _hash.DidNotReceive().ComputeSha256Async(unique.FilePath, Arg.Any<CancellationToken>());
+        await _perceptualHash.Received(1).ComputePHashAsync(unique.FilePath, Arg.Any<CancellationToken>());
+        await _grouping.Received(1).BuildGroupsAsync(
+            Arg.Is<IReadOnlyList<PhotoItem>>(p => p.Count == 3), null, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task AnalyzeAsync_ThumbnailDisabled_DoesNotRequestThumbnail()
+    {
+        _scanner.ScanAsync(_sourceDirectory, Arg.Any<CancellationToken>())
+            .Returns(ScanPhotos([Photo("no-thumbnail.jpg")]));
+        ConfigureNoOpPipeline();
+
+        await CreateSut().AnalyzeAsync(_sourceDirectory, new PhotoAnalysisOptions { GenerateThumbnails = false });
+
+        await _thumbnails.DidNotReceive().GetOrCreateAsync(
+            Arg.Any<PhotoItem>(), Arg.Any<int>(), Arg.Any<CancellationToken>());
+    }
+
     private PhotoAnalysisEngine CreateSut() => new(
         _scanner,
         _thumbnails,

@@ -16,6 +16,7 @@ public sealed partial class MainViewModel : ObservableObject
     private readonly IPhotoAnalysisEngine _analysisEngine;
     private readonly IPhotoRepository _photoRepo;
     private readonly IPhotoGroupRepository _groupRepo;
+    private readonly IAnalysisResultRepository _analysisResults;
     private readonly ISettingsRepository _settings;
     private readonly IFileMoveService _fileMover;
     private readonly IUndoService _undo;
@@ -24,6 +25,7 @@ public sealed partial class MainViewModel : ObservableObject
     private readonly ILogger<MainViewModel> _logger;
 
     private CancellationTokenSource? _scanCts;
+    private readonly SemaphoreSlim _dataGate = new(1, 1);
     // Incremented whenever a scan replaces the in-memory result set. A
     // database load that started before that replacement must not clear the
     // newer scan results when its asynchronous queries finish.
@@ -33,6 +35,7 @@ public sealed partial class MainViewModel : ObservableObject
         IPhotoAnalysisEngine analysisEngine,
         IPhotoRepository photoRepo,
         IPhotoGroupRepository groupRepo,
+        IAnalysisResultRepository analysisResults,
         ISettingsRepository settings,
         IFileMoveService fileMover,
         IUndoService undo,
@@ -43,6 +46,7 @@ public sealed partial class MainViewModel : ObservableObject
         _analysisEngine       = analysisEngine;
         _photoRepo            = photoRepo;
         _groupRepo            = groupRepo;
+        _analysisResults      = analysisResults;
         _settings             = settings;
         _fileMover            = fileMover;
         _undo                 = undo;
@@ -145,28 +149,50 @@ public sealed partial class MainViewModel : ObservableObject
 
     // ── Mark commands (used by detail panel buttons and context menus) ────────
 
-    [RelayCommand]
-    public void MarkKeep(PhotoItemViewModel? vm)
-    {
-        if (vm is null) return;
-        vm.SetStatus(RecommendationStatus.ManualKeep);
-        RefreshCounts();
-    }
+    private bool CanEditPhotos() => !IsScanning;
 
-    [RelayCommand]
-    public void MarkDelete(PhotoItemViewModel? vm)
-    {
-        if (vm is null) return;
-        vm.SetStatus(RecommendationStatus.ManualDelete);
-        RefreshCounts();
-    }
+    [RelayCommand(CanExecute = nameof(CanEditPhotos))]
+    public Task MarkKeepAsync(PhotoItemViewModel? vm)
+        => SaveDecisionAsync(vm, RecommendationStatus.ManualKeep);
 
-    [RelayCommand]
-    public void MarkReview(PhotoItemViewModel? vm)
+    [RelayCommand(CanExecute = nameof(CanEditPhotos))]
+    public Task MarkDeleteAsync(PhotoItemViewModel? vm)
+        => SaveDecisionAsync(vm, RecommendationStatus.ManualDelete);
+
+    [RelayCommand(CanExecute = nameof(CanEditPhotos))]
+    public Task MarkReviewAsync(PhotoItemViewModel? vm)
+        => SaveDecisionAsync(vm, RecommendationStatus.Review);
+
+    private async Task SaveDecisionAsync(PhotoItemViewModel? vm, RecommendationStatus status)
     {
-        if (vm is null) return;
-        vm.SetStatus(RecommendationStatus.Review);
-        RefreshCounts();
+        if (vm is null || IsScanning) return;
+        await _dataGate.WaitAsync();
+        try
+        {
+            await _photoRepo.UpdateRecommendationAsync(vm.Id, status);
+            vm.SetStatus(status);
+            if (status == RecommendationStatus.ManualKeep && FindGroupForPhoto(vm) is { } group)
+            {
+                var previous = group.RecommendedPhoto;
+                group.SetRecommendedPhoto(vm);
+                await _groupRepo.UpdateAsync(group.Model);
+                if (previous is not null && previous.Id != vm.Id
+                    && previous.Status == RecommendationStatus.Keep)
+                {
+                    await _photoRepo.UpdateRecommendationAsync(previous.Id, RecommendationStatus.Review);
+                    previous.SetStatus(RecommendationStatus.Review);
+                }
+                if (SelectedGroup == group) RecommendedPhoto = vm;
+            }
+            RefreshCounts();
+            UpdatePhotoSelectionFlags();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to save decision for {PhotoId}", vm.Id);
+            _notifications.ShowError($"保存选片状态失败：{ex.Message}");
+        }
+        finally { _dataGate.Release(); }
     }
 
     [RelayCommand]
@@ -243,36 +269,13 @@ public sealed partial class MainViewModel : ObservableObject
         UpdatePhotoSelectionFlags();
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanEditPhotos))]
     public async Task SetAsKeepAsync(CancellationToken ct = default)
     {
-        if (SelectedGroup is null || ComparePhoto is null) return;
+        if (IsScanning || SelectedGroup is null || ComparePhoto is null) return;
 
         var previousRecommended = RecommendedPhoto;
-        if (previousRecommended == ComparePhoto)
-        {
-            ComparePhoto.SetStatus(RecommendationStatus.ManualKeep);
-            RefreshCounts();
-            return;
-        }
-
-        previousRecommended?.SetStatus(RecommendationStatus.Review);
-        ComparePhoto.SetStatus(RecommendationStatus.ManualKeep);
-        SelectedGroup.SetRecommendedPhoto(ComparePhoto);
-        RecommendedPhoto = ComparePhoto;
-
-        try
-        {
-            await _groupRepo.UpdateAsync(SelectedGroup.Model, ct);
-            await _photoRepo.UpdateAsync(ComparePhoto.Model, ct);
-            if (previousRecommended is not null)
-                await _photoRepo.UpdateAsync(previousRecommended.Model, ct);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Failed to persist recommended photo change for group {GroupId}",
-                SelectedGroup.Id);
-        }
+        await MarkKeepAsync(ComparePhoto);
 
         ComparePhoto = previousRecommended
             ?? GetNextPhotoInGroup(RecommendedPhoto, skipRecommended: true)
@@ -284,28 +287,22 @@ public sealed partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(CompareHeader));
     }
 
-    [RelayCommand]
-    public void MarkAsKeep()
+    [RelayCommand(CanExecute = nameof(CanEditPhotos))]
+    public async Task MarkAsKeepAsync()
     {
         var photo = CurrentActionPhoto();
         if (photo is null) return;
 
-        MarkKeep(photo);
-        if (SelectedGroup?.Photos.Contains(photo) == true)
-            SelectedGroup.SetRecommendedPhoto(photo);
-
-        RecommendedPhoto = SelectedGroup?.RecommendedPhoto;
-        UpdatePhotoSelectionFlags();
+        await MarkKeepAsync(photo);
     }
 
-    [RelayCommand]
-    public void MarkAsDelete()
+    [RelayCommand(CanExecute = nameof(CanEditPhotos))]
+    public async Task MarkAsDeleteAsync()
     {
         var photo = CurrentActionPhoto();
         if (photo is null) return;
 
-        MarkDelete(photo);
-        UpdatePhotoSelectionFlags();
+        await MarkDeleteAsync(photo);
     }
 
     [RelayCommand]
@@ -452,10 +449,10 @@ public sealed partial class MainViewModel : ObservableObject
 
     private void UpdatePhotoSelectionFlags()
     {
+        var recommendedIds = Groups.Select(group => group.Model.RecommendedPhotoId).ToHashSet();
         foreach (var photo in AllPhotos)
         {
-            var isAlgorithmRecommended = Groups.Any(group =>
-                group.Model.RecommendedPhotoId == photo.Id);
+            var isAlgorithmRecommended = recommendedIds.Contains(photo.Id);
             photo.IsAlgorithmRecommended = isAlgorithmRecommended;
             photo.IsRecommendedInSelectedGroup =
                 SelectedGroup is not null && photo.Id == SelectedGroup.Model.RecommendedPhotoId;
@@ -568,17 +565,9 @@ public sealed partial class MainViewModel : ObservableObject
             foreach (var photo in dbPhotos)
                 AllPhotos.Add(photoVmMap[photo.Id]);
 
-            var photosByGroup = new Dictionary<Guid, List<PhotoItemViewModel>>();
-
-            foreach (var group in dbGroups)
-            {
-                var vmList = dbPhotos
-                    .Where(p => p.GroupId == group.Id)
-                    .Select(p => photoVmMap[p.Id])
-                    .ToList();
-
-                photosByGroup[group.Id] = vmList;
-            }
+            var photosByGroup = dbPhotos.Where(p => p.GroupId.HasValue)
+                .GroupBy(p => p.GroupId!.Value)
+                .ToDictionary(g => g.Key, g => g.Select(p => photoVmMap[p.Id]).ToList());
 
             foreach (var group in dbGroups.OrderByDescending(g => g.PhotoCount))
             {
@@ -607,7 +596,7 @@ public sealed partial class MainViewModel : ObservableObject
 
     // ── Scan ──────────────────────────────────────────────────────────────────
 
-    [RelayCommand(CanExecute = nameof(CanToggleScan))]
+    [RelayCommand(CanExecute = nameof(CanToggleScan), AllowConcurrentExecutions = true)]
     private async Task ToggleScanAsync()
     {
         if (IsScanning)
@@ -622,35 +611,43 @@ public sealed partial class MainViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanStartScan))]
     private async Task StartScanAsync()
     {
-        if (string.IsNullOrEmpty(SelectedDirectory)) return;
+        if (IsScanning || string.IsNullOrEmpty(SelectedDirectory)) return;
 
         Interlocked.Increment(ref _dataVersion);
+        var sourceDirectory = SelectedDirectory;
         _scanCts = new CancellationTokenSource();
         IsScanning = true;
         var started = DateTime.Now;
         var allPhotos = new List<PhotoItem>();
+        // Drain pending decision writes before taking the input snapshot.
+        await _dataGate.WaitAsync();
 
         try
         {
-            AllPhotos.Clear();
-            Groups.Clear();
-
             // Reset progress so the previous scan's InfoBar is dismissed
             ScanProgress = ScanProgress.Idle;
 
-            // Clear DB so the incremental-scan filter starts fresh.
-            await _groupRepo.DeleteAllAsync(_scanCts.Token);
-            await _photoRepo.DeleteAllAsync(_scanCts.Token);
-
+            var previousPhotos = await _photoRepo.GetAllAsync(_scanCts.Token);
             var appSettings = await _settings.LoadAsync(_scanCts.Token);
             var analysisRun = await _analysisEngine.AnalyzeAsync(
-                SelectedDirectory,
-                PhotoAnalysisOptions.FromSettings(appSettings),
+                sourceDirectory,
+                PhotoAnalysisOptions.FromSettings(appSettings) with { ComputeAllFileHashes = false },
                 new Progress<ScanProgress>(progress => ScanProgress = progress),
                 _scanCts.Token);
             allPhotos.AddRange(analysisRun.Photos);
             var photoGroups = analysisRun.Groups;
 
+            // Keep both the displayed and persisted snapshot until every analysis stage succeeds.
+            await _analysisResults.ReplaceAsync(analysisRun.Photos, photoGroups, _scanCts.Token);
+            Interlocked.Increment(ref _dataVersion);
+            var activePaths = allPhotos.Select(p => p.FilePath).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            allPhotos.AddRange(previousPhotos.Where(p => p.IsMovedToTrash && !activePaths.Contains(p.FilePath))
+                .Select(p => { var copy = p.CreateSnapshot(); copy.GroupId = null; return copy; }));
+
+            AllPhotos.Clear();
+            Groups.Clear();
+            SelectedGroup = null;
+            SelectedPhoto = null;
             foreach (var photo in allPhotos)
                 AllPhotos.Add(new PhotoItemViewModel(photo));
 
@@ -659,37 +656,6 @@ public sealed partial class MainViewModel : ObservableObject
             _logger.LogInformation(
                 "Grouping done: {GroupCount} groups from {PhotoCount} photos",
                 photoGroups.Count, allPhotos.Count);
-
-            // ── Phase 4: persist (groups FIRST, then photos with GroupId) ─────
-            //
-            // Order matters for FK integrity:
-            //   1. Insert PhotoGroups (no FK dependencies)
-            //   2. Detach navigation Photos from groups before inserting groups
-            //      (EF Core would try to re-insert already-tracked entities)
-            //   3. Insert PhotoItems (with GroupId set, FK satisfied)
-            //
-            if (photoGroups.Count > 0)
-            {
-                // Snapshot group shells (no navigation photos) for DB insert
-                var groupShells = photoGroups.Select(g => new PhotoGroup
-                {
-                    Id               = g.Id,
-                    GroupType        = g.GroupType,
-                    Name             = g.Name,
-                    RecommendedPhotoId = g.RecommendedPhotoId,
-                    PhotoCount       = g.PhotoCount,
-                    SimilarityScore  = g.SimilarityScore,
-                    CreatedTime      = g.CreatedTime,
-                }).ToList();
-
-                await _groupRepo.DeleteAllAsync(_scanCts.Token); // clear stale groups
-                await _groupRepo.AddRangeAsync(groupShells, _scanCts.Token);
-
-                _logger.LogInformation("Persisted {Count} groups to DB", groupShells.Count);
-            }
-
-            // Now persist photos (GroupId already set by grouping service)
-            await _photoRepo.AddRangeAsync(allPhotos, _scanCts.Token);
 
             _logger.LogInformation(
                 "Persisted {Count} photos to DB (grouped: {Grouped})",
@@ -719,8 +685,9 @@ public sealed partial class MainViewModel : ObservableObject
             RefreshCounts();
 
             // Persist last-used directory
-            appSettings.LastSelectedDirectory = SelectedDirectory;
-            await _settings.SaveAsync(appSettings, _scanCts.Token);
+            appSettings.LastSelectedDirectory = sourceDirectory;
+            try { await _settings.SaveAsync(appSettings, CancellationToken.None); }
+            catch (Exception ex) { _logger.LogWarning(ex, "Could not save last directory after scan"); }
 
             ScanProgress = Core.Models.ScanProgress.Completed(
                 allPhotos.Count, started.ToUniversalTime());
@@ -741,6 +708,7 @@ public sealed partial class MainViewModel : ObservableObject
         }
         finally
         {
+            _dataGate.Release();
             IsScanning = false;
             _scanCts?.Dispose();
             _scanCts = null;
@@ -761,6 +729,14 @@ public sealed partial class MainViewModel : ObservableObject
         StartScanCommand.NotifyCanExecuteChanged();
         StopScanCommand.NotifyCanExecuteChanged();
         ToggleScanCommand.NotifyCanExecuteChanged();
+        MarkKeepCommand.NotifyCanExecuteChanged();
+        MarkDeleteCommand.NotifyCanExecuteChanged();
+        MarkReviewCommand.NotifyCanExecuteChanged();
+        MarkAsKeepCommand.NotifyCanExecuteChanged();
+        MarkAsDeleteCommand.NotifyCanExecuteChanged();
+        SetAsKeepCommand.NotifyCanExecuteChanged();
+        MoveMarkedToTrashCommand.NotifyCanExecuteChanged();
+        UndoLastMoveCommand.NotifyCanExecuteChanged();
     }
 
     partial void OnSelectedDirectoryChanged(string value)
@@ -771,26 +747,29 @@ public sealed partial class MainViewModel : ObservableObject
 
     // ── File operations ───────────────────────────────────────────────────────
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanEditPhotos))]
     public async Task MoveMarkedToTrashAsync(CancellationToken ct = default)
     {
-        var appSettings = await _settings.LoadAsync(ct);
-        var toMoveVms = AllPhotos
-            .Where(vm => vm.Status is RecommendationStatus.ToDelete
-                                   or RecommendationStatus.ManualDelete)
-            .ToList();
-        var toMove = toMoveVms.Select(vm => vm.Model).ToList();
-
-        if (toMove.Count == 0) return;
-
-        var trashDir = string.IsNullOrEmpty(SelectedDirectory)
-            ? Path.Combine(Path.GetTempPath(), "PhotoCuller_ToDelete")
-            : Path.Combine(
-                Path.GetDirectoryName(SelectedDirectory) ?? SelectedDirectory,
-                appSettings.ToDeleteFolderName);
-
+        if (IsScanning) return;
+        await _dataGate.WaitAsync(ct);
         try
         {
+            if (IsScanning) return;
+            var appSettings = await _settings.LoadAsync(ct);
+            var toMoveVms = AllPhotos
+                .Where(vm => !vm.IsMovedToTrash && vm.Status is
+                    RecommendationStatus.ToDelete or RecommendationStatus.ManualDelete)
+                .ToList();
+            var toMove = toMoveVms.Select(vm => vm.Model).ToList();
+
+            if (toMove.Count == 0) return;
+
+            var trashDir = string.IsNullOrEmpty(SelectedDirectory)
+                ? Path.Combine(Path.GetTempPath(), "PhotoCuller_ToDelete")
+                : Path.Combine(
+                    Path.GetDirectoryName(SelectedDirectory) ?? SelectedDirectory,
+                    appSettings.ToDeleteFolderName);
+
             var logs = await _fileMover.MoveManyToTrashAsync(
                 toMove, trashDir, appSettings.PreserveFolderStructure,
                 new Progress<int>(n =>
@@ -806,7 +785,10 @@ public sealed partial class MainViewModel : ObservableObject
                 _notifications.ShowSuccess($"已将 {ok} 张照片移动到待删除目录：{trashDir}");
 
             foreach (var vm in toMoveVms)
+            {
+                await _photoRepo.UpdateAsync(vm.Model, ct);
                 vm.NotifyStatusChanged();
+            }
 
             RefreshCounts();
         }
@@ -815,13 +797,37 @@ public sealed partial class MainViewModel : ObservableObject
             _logger.LogError(ex, "MoveMarkedToTrash failed");
             _notifications.ShowError($"移动失败：{ex.Message}");
         }
+        finally { _dataGate.Release(); }
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanEditPhotos))]
     public async Task UndoLastMoveAsync(CancellationToken ct = default)
     {
-        bool ok = await _undo.UndoLastAsync(ct);
-        if (ok) _notifications.ShowSuccess("已撤销上一次移动操作");
-        else    _notifications.ShowWarning("没有可撤销的操作");
+        if (IsScanning) return;
+        await _dataGate.WaitAsync(ct);
+        try
+        {
+            if (IsScanning) return;
+            bool ok = await _undo.UndoLastAsync(ct);
+            if (ok)
+            {
+                foreach (var photo in AllPhotos.Where(p => p.IsMovedToTrash && File.Exists(p.FilePath)))
+                {
+                    photo.Model.IsMovedToTrash = false;
+                    photo.SetStatus(RecommendationStatus.Review);
+                    await _photoRepo.UpdateAsync(photo.Model, ct);
+                    photo.NotifyStatusChanged();
+                }
+                RefreshCounts();
+            }
+            if (ok) _notifications.ShowSuccess("已撤销上一次移动操作");
+            else    _notifications.ShowWarning("没有可撤销的操作");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "UndoLastMove failed");
+            _notifications.ShowError($"撤销失败：{ex.Message}");
+        }
+        finally { _dataGate.Release(); }
     }
 }

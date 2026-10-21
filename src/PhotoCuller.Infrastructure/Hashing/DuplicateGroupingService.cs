@@ -500,14 +500,10 @@ public sealed class DuplicateGroupingService : IDuplicateGroupingService
         // Manual keep always wins
         var manualKeep = group.Photos
             .FirstOrDefault(p => p.RecommendationStatus == RecommendationStatus.ManualKeep);
-        if (manualKeep is not null)
-        {
-            group.RecommendedPhotoId = manualKeep.Id;
-            return;
-        }
-
         // Rank remaining candidates by quality
-        var best = group.Photos
+        var best = manualKeep ?? group.Photos
+            .Where(p => p.RecommendationStatus != RecommendationStatus.ManualDelete
+                        && !p.IsMovedToTrash)
             .Where(p => string.IsNullOrEmpty(p.ErrorMessage))   // skip errored
             .Where(p => p.Width > 0 && p.Height > 0)            // skip zero-dim
             .OrderByDescending(p => p.OverallScore ?? 0)
@@ -515,17 +511,14 @@ public sealed class DuplicateGroupingService : IDuplicateGroupingService
             .ThenBy(p => p.FileName)                             // deterministic tiebreak
             .FirstOrDefault();
 
-        if (best is not null)
+        group.RecommendedPhotoId = best?.Id;
+        foreach (var photo in group.Photos)
         {
-            group.RecommendedPhotoId = best.Id;
-            best.RecommendationStatus = RecommendationStatus.Keep;
-
-            // Mark others as Review (not forced-delete — user decides)
-            foreach (var other in group.Photos.Where(p => p.Id != best.Id))
-            {
-                if (other.RecommendationStatus == RecommendationStatus.Unprocessed)
-                    other.RecommendationStatus = RecommendationStatus.Review;
-            }
+            if (photo.RecommendationStatus is RecommendationStatus.ManualKeep
+                or RecommendationStatus.ManualDelete || photo.IsMovedToTrash)
+                continue;
+            photo.RecommendationStatus = photo.Id == best?.Id
+                ? RecommendationStatus.Keep : RecommendationStatus.Review;
         }
     }
 

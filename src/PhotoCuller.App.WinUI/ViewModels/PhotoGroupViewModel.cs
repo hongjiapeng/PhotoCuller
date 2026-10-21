@@ -41,7 +41,8 @@ public sealed partial class PhotoGroupViewModel : ObservableObject
 
     public PhotoItemViewModel? RecommendedPhoto =>
         Photos.FirstOrDefault(p => p.Id == Model.RecommendedPhotoId)
-        ?? Photos.OrderByDescending(p => p.OverallScore ?? 0).FirstOrDefault();
+        ?? Photos.Where(p => p.Status != RecommendationStatus.ManualDelete && !p.IsMovedToTrash)
+            .OrderByDescending(p => p.OverallScore ?? 0).FirstOrDefault();
 
     public void SetRecommendedPhoto(PhotoItemViewModel photo)
     {

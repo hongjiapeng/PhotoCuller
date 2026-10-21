@@ -15,13 +15,16 @@ namespace PhotoCuller.Infrastructure.ThumbnailCache;
 /// Example:         thumbnails/a3/f7/a3f7b2c9d1e4...jpg
 ///
 /// Bucketing avoids slow directory enumeration when the library is large.
-/// The cache key is derived from the file path + modification time so
-/// unchanged files reuse the cached thumbnail without regenerating.
+/// Cache identity includes file path, size, modification time and processing version.
+/// Each requested edge length has its own file. Only complete JPEGs are published.
 /// </summary>
-public sealed class ThumbnailService : IThumbnailService
+public sealed class ThumbnailService : IThumbnailService, IDisposable
 {
     private readonly string _cacheRoot;
     private readonly ILogger<ThumbnailService> _logger;
+    private readonly SemaphoreSlim _generationBudget = new(4, 4);
+    private readonly SemaphoreSlim[] _generationLocks = Enumerable.Range(0, 64)
+        .Select(_ => new SemaphoreSlim(1, 1)).ToArray();
 
     private static readonly JpegEncoder ThumbEncoder = new() { Quality = 80 };
 
@@ -50,17 +53,32 @@ public sealed class ThumbnailService : IThumbnailService
         int maxEdgePx = 256,
         CancellationToken cancellationToken = default)
     {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxEdgePx);
+        cancellationToken.ThrowIfCancellationRequested();
         try
         {
-            var thumbPath = GetThumbnailPath(photo);
+            var thumbPath = GetThumbnailPath(photo, maxEdgePx);
 
             // Cache hit: thumbnail exists and is not stale
             if (File.Exists(thumbPath) && !IsStale(thumbPath, photo))
                 return thumbPath;
 
-            // Cache miss: generate and save
-            await GenerateAsync(photo.FilePath, thumbPath, maxEdgePx, cancellationToken);
-            return thumbPath;
+            var gate = _generationLocks[(uint)StringComparer.Ordinal.GetHashCode(thumbPath)
+                % (uint)_generationLocks.Length];
+            await gate.WaitAsync(cancellationToken);
+            try
+            {
+                if (File.Exists(thumbPath) && !IsStale(thumbPath, photo))
+                    return thumbPath;
+                await _generationBudget.WaitAsync(cancellationToken);
+                try
+                {
+                    await GenerateAsync(photo.FilePath, thumbPath, maxEdgePx, cancellationToken);
+                    return thumbPath;
+                }
+                finally { _generationBudget.Release(); }
+            }
+            finally { gate.Release(); }
         }
         catch (OperationCanceledException)
         {
@@ -75,9 +93,11 @@ public sealed class ThumbnailService : IThumbnailService
 
     public Task DeleteAsync(PhotoItem photo, CancellationToken cancellationToken = default)
     {
-        var path = GetThumbnailPath(photo);
-        if (File.Exists(path))
-            File.Delete(path);
+        cancellationToken.ThrowIfCancellationRequested();
+        var path = GetThumbnailPath(photo, 256);
+        var key = ComputeCacheKey(photo);
+        foreach (var cached in Directory.EnumerateFiles(Path.GetDirectoryName(path)!, $"{key}-*.jpg"))
+            File.Delete(cached);
         return Task.CompletedTask;
     }
 
@@ -102,23 +122,31 @@ public sealed class ThumbnailService : IThumbnailService
         return Task.FromResult(size);
     }
 
+    public void Dispose()
+    {
+        _generationBudget.Dispose();
+        foreach (var gate in _generationLocks) gate.Dispose();
+    }
+
     // ── Internals ────────────────────────────────────────────────────────────
 
-    private string GetThumbnailPath(PhotoItem photo)
+    private string GetThumbnailPath(PhotoItem photo, int maxEdgePx)
     {
-        // Cache key = SHA-256(filePath + modifiedTime) — no crypto needed, just fast uniqueness
         var key = ComputeCacheKey(photo);
         var bucket1 = key[..2];
         var bucket2 = key[2..4];
         var dir = Path.Combine(_cacheRoot, bucket1, bucket2);
         Directory.CreateDirectory(dir);
-        return Path.Combine(dir, $"{key}.jpg");
+        return Path.Combine(dir, $"{key}-{maxEdgePx}.jpg");
     }
 
     private static string ComputeCacheKey(PhotoItem photo)
     {
-        // Use xxHash-style fast hash: combine path + modifiedTime to a hex string
-        var raw = $"{photo.FilePath}|{photo.ModifiedTime:O}";
+        var source = new FileInfo(photo.FilePath);
+        var path = Path.GetFullPath(photo.FilePath);
+        if (OperatingSystem.IsWindows()) path = path.ToUpperInvariant();
+        var raw = FormattableString.Invariant(
+            $"thumbnail-v2|{path}|{(source.Exists ? source.Length : photo.FileSize)}|{(source.Exists ? source.LastWriteTimeUtc.Ticks : photo.ModifiedTime?.Ticks)}");
         var bytes = System.Text.Encoding.UTF8.GetBytes(raw);
         var hash = System.Security.Cryptography.SHA256.HashData(bytes);
         // First 16 bytes → 32 hex chars (plenty for uniqueness, short for filenames)
@@ -141,14 +169,24 @@ public sealed class ThumbnailService : IThumbnailService
     {
         await Task.Run(async () =>
         {
-            using var image = await Image.LoadAsync(sourcePath, ct);
-            image.Mutate(x => x.AutoOrient().Resize(new ResizeOptions
+            var temporaryPath = destPath + $".{Guid.NewGuid():N}.tmp";
+            try
             {
-                Size = new Size(maxEdgePx, maxEdgePx),
-                Mode = ResizeMode.Max,
-                Sampler = KnownResamplers.Lanczos3,
-            }));
-            await image.SaveAsJpegAsync(destPath, ThumbEncoder, ct);
+                using var image = await Image.LoadAsync(sourcePath, ct);
+                image.Mutate(x => x.AutoOrient().Resize(new ResizeOptions
+                {
+                    Size = new Size(maxEdgePx, maxEdgePx),
+                    Mode = ResizeMode.Max,
+                    Sampler = KnownResamplers.Lanczos3,
+                }));
+                await image.SaveAsJpegAsync(temporaryPath, ThumbEncoder, ct);
+                ct.ThrowIfCancellationRequested();
+                File.Move(temporaryPath, destPath, overwrite: true);
+            }
+            finally
+            {
+                if (File.Exists(temporaryPath)) File.Delete(temporaryPath);
+            }
         }, ct);
     }
 }

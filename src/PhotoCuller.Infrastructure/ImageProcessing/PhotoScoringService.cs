@@ -1,4 +1,6 @@
 using Microsoft.Extensions.Logging;
+using System.Security.Cryptography;
+using System.Text;
 using PhotoCuller.Core.Enums;
 using PhotoCuller.Core.Interfaces.Ai;
 using PhotoCuller.Core.Interfaces.Scoring;
@@ -69,6 +71,11 @@ public sealed class PhotoScoringService : IPhotoScoringService
         AiScoringContext? aiContext,
         CancellationToken ct)
     {
+        ct.ThrowIfCancellationRequested();
+        var signature = CreateScoringSignature(photo, weights, aiContext);
+        if (photo.ScoringSignature == signature && photo.OverallScore.HasValue)
+            return;
+
         // Run all dimension scorers in parallel
         var (sharpness, exposure, contrast, noise, resolution, composition, color, aesthetic) =
             await RunAllAsync(photo, aiContext, ct);
@@ -90,6 +97,12 @@ public sealed class PhotoScoringService : IPhotoScoringService
             weights,
             aiContext?.BlendPercent ?? 0);
 
+        // Retry incomplete analysis and failed inference instead of caching a degraded result forever.
+        photo.ScoringSignature = sharpness.HasValue && exposure.HasValue && contrast.HasValue
+            && noise.HasValue && resolution.HasValue && composition.HasValue && color.HasValue
+            && (aiContext is null || aesthetic.HasValue)
+            ? signature : null;
+
         _logger.LogDebug(
             "Scored {File}: overall={Score:F1} " +
             "(sharp={S:F0} exp={E:F0} con={C:F0} noise={N:F0} res={R:F0} comp={Co:F0} col={Cl:F0} aes={A:F0})",
@@ -107,24 +120,16 @@ public sealed class PhotoScoringService : IPhotoScoringService
         int done = 0;
         var aiContext = await ResolveAiContextAsync(ct);
 
-        // Bounded parallelism: limit to (CPU - 1) concurrent scorers
-        var semaphore = new SemaphoreSlim(Math.Max(1, Environment.ProcessorCount - 1));
-
-        var tasks = photos.Select(async photo =>
+        // Each photo runs several decoders; cap memory pressure and avoid one waiting Task per file.
+        await Parallel.ForEachAsync(photos, new ParallelOptions
         {
-            await semaphore.WaitAsync(ct);
-            try
-            {
-                await ScoreAsync(photo, weights, aiContext, ct);
-                progress?.Report(Interlocked.Increment(ref done));
-            }
-            finally
-            {
-                semaphore.Release();
-            }
+            MaxDegreeOfParallelism = Math.Clamp(Environment.ProcessorCount - 1, 1, 4),
+            CancellationToken = ct,
+        }, async (photo, token) =>
+        {
+            await ScoreAsync(photo, weights, aiContext, token);
+            progress?.Report(Interlocked.Increment(ref done));
         });
-
-        await Task.WhenAll(tasks);
     }
 
     // ── Internals ────────────────────────────────────────────────────────────
@@ -202,7 +207,8 @@ public sealed class PhotoScoringService : IPhotoScoringService
 
             return new AiScoringContext(
                 profile,
-                Math.Clamp(settings.AestheticBlendPercent, 0, 100));
+                Math.Clamp(settings.AestheticBlendPercent, 0, 100),
+                GetModelSignature(profile));
         }
         catch (OperationCanceledException)
         {
@@ -256,7 +262,23 @@ public sealed class PhotoScoringService : IPhotoScoringService
             100f);
     }
 
+    private static string CreateScoringSignature(
+        PhotoItem photo, ScoringWeights weights, AiScoringContext? context)
+    {
+        var raw = FormattableString.Invariant(
+            $"scoring-v1|{photo.FilePath}|{photo.FileSize}|{photo.ModifiedTime?.Ticks}|{photo.Width}|{photo.Height}|{weights}|{context?.ModelSignature}|{context?.BlendPercent}");
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(raw)));
+    }
+
+    private static string GetModelSignature(AiModelProfile profile)
+    {
+        var file = new FileInfo(profile.LocalModelPath!);
+        return FormattableString.Invariant(
+            $"{profile.Id}|{profile.Name}|{profile.LocalModelPath}|{profile.LocalModelPreset}|{profile.UpdatedTime.Ticks}|{(file.Exists ? file.Length : 0)}|{(file.Exists ? file.LastWriteTimeUtc.Ticks : 0)}");
+    }
+
     private sealed record AiScoringContext(
         AiModelProfile Profile,
-        int BlendPercent);
+        int BlendPercent,
+        string ModelSignature);
 }

@@ -99,10 +99,10 @@ public sealed class PhotoAnalysisEngine : IPhotoAnalysisEngine
                     current,
                     total,
                     CurrentFile: photo.FileName));
-                photo.Sha256Hash = await _hash.ComputeSha256Async(
-                    photo.FilePath,
-                    cancellationToken);
-                photo.PerceptualHash = await _perceptualHash.ComputePHashAsync(
+                if (options.ComputeAllFileHashes && string.IsNullOrEmpty(photo.Sha256Hash))
+                    photo.Sha256Hash = await _hash.ComputeSha256Async(
+                        photo.FilePath, cancellationToken);
+                photo.PerceptualHash ??= await _perceptualHash.ComputePHashAsync(
                     photo.FilePath,
                     cancellationToken);
 
@@ -116,6 +116,21 @@ public sealed class PhotoAnalysisEngine : IPhotoAnalysisEngine
         }
 
         cancellationToken.ThrowIfCancellationRequested();
+        if (!options.ComputeAllFileHashes)
+        {
+            var candidates = photos.GroupBy(p => p.FileSize)
+                .Where(g => g.Key > 0 && g.Count() > 1)
+                .SelectMany(g => g).Where(p => string.IsNullOrEmpty(p.Sha256Hash)).ToList();
+            for (var index = 0; index < candidates.Count; index++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var photo = candidates[index];
+                progress?.Report(new ScanProgress(ScanPhase.ComputingHashes,
+                    index + 1, candidates.Count, CurrentFile: photo.FileName));
+                photo.Sha256Hash = await _hash.ComputeSha256Async(photo.FilePath, cancellationToken);
+            }
+        }
+
         progress?.Report(new ScanProgress(ScanPhase.Scoring, 0, photos.Count));
         await _scoring.ScoreRangeAsync(
             photos,
@@ -133,6 +148,10 @@ public sealed class PhotoAnalysisEngine : IPhotoAnalysisEngine
         var groups = await _grouping.BuildGroupsAsync(
             photos,
             ct: cancellationToken);
+
+        cancellationToken.ThrowIfCancellationRequested();
+        foreach (var photo in photos)
+            photo.AnalysisVersion = PhotoItem.CurrentAnalysisVersion;
 
         var completedAt = DateTimeOffset.UtcNow;
         progress?.Report(ScanProgress.Completed(photos.Count, startedAt.UtcDateTime));

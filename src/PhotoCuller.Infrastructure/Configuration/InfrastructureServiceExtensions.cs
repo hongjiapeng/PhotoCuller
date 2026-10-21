@@ -49,6 +49,7 @@ public static class InfrastructureServiceExtensions
         // Repositories
         services.AddScoped<IPhotoRepository, PhotoRepository>();
         services.AddScoped<IPhotoGroupRepository, PhotoGroupRepository>();
+        services.AddScoped<IAnalysisResultRepository, AnalysisResultRepository>();
         services.AddScoped<IAiModelProfileRepository, AiModelProfileRepository>();
         services.AddScoped<IFileOperationLogRepository, FileOperationLogRepository>();
         services.AddSingleton<ISettingsRepository, SettingsRepository>();

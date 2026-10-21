@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using PhotoCuller.Core.Interfaces.Storage;
 using PhotoCuller.Core.Models;
+using PhotoCuller.Core.Enums;
 using PhotoCuller.Infrastructure.Database;
 using PhotoCuller.Infrastructure.Logging;
 
@@ -101,9 +102,15 @@ public sealed class PhotoRepository : IPhotoRepository
 
     public async Task UpdateAsync(PhotoItem photo, CancellationToken ct = default)
     {
-        _db.Photos.Update(photo);
-        await _db.SaveChangesAsync(ct);
+        _db.Entry(photo).State = EntityState.Modified;
+        try { await _db.SaveChangesAsync(ct); }
+        finally { _db.Entry(photo).State = EntityState.Detached; }
     }
+
+    public async Task UpdateRecommendationAsync(
+        Guid id, RecommendationStatus status, CancellationToken ct = default)
+        => await _db.Photos.Where(p => p.Id == id).ExecuteUpdateAsync(
+            update => update.SetProperty(p => p.RecommendationStatus, status), ct);
 
     public async Task DeleteAsync(Guid id, CancellationToken ct = default)
     {
@@ -117,16 +124,17 @@ public sealed class PhotoRepository : IPhotoRepository
 
     /// <summary>
     /// Raw SQL escape hatch: returns paths that need rescanning
-    /// (file not in DB, or ModifiedTime is newer than last scan).
+    /// (file not in DB, or its modification timestamp differs from the stored value).
     /// </summary>
     public async Task<IReadOnlyList<string>> GetPathsNeedingRescanAsync(
         IEnumerable<(string Path, DateTime ModifiedTime)> candidates,
         CancellationToken ct = default)
     {
-        // Load existing scan times into a dictionary for O(1) lookup
+        // Compare the stored file timestamp, including replacements with an older timestamp.
         var existing = await _db.Photos
             .Select(p => new { p.FilePath, p.ModifiedTime, p.ScanTime })
-            .ToDictionaryAsync(p => p.FilePath, ct);
+            .ToListAsync(ct);
+        var byPath = existing.ToDictionary(p => p.FilePath, StringComparer.OrdinalIgnoreCase);
 
         var result = new List<string>();
 
@@ -134,15 +142,15 @@ public sealed class PhotoRepository : IPhotoRepository
         {
             ct.ThrowIfCancellationRequested();
 
-            if (!existing.TryGetValue(path, out var record))
+            if (!byPath.TryGetValue(path, out var record))
             {
                 // Not yet in DB
                 result.Add(path);
                 continue;
             }
 
-            // Re-scan if the file was modified after the last scan
-            if (record.ScanTime is null || modifiedTime > record.ScanTime)
+            // Older timestamps also occur when replacing or restoring a file.
+            if (record.ScanTime is null || modifiedTime != record.ModifiedTime)
                 result.Add(path);
         }
 

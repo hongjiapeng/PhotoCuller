@@ -164,32 +164,32 @@ public sealed partial class FilteredPhotoPage : Page
         return _vm.AllPhotos.FirstOrDefault(p => p.Id == id);
     }
 
-    private void MarkKeep_Click(object sender, RoutedEventArgs e)
+    private async void MarkKeep_Click(object sender, RoutedEventArgs e)
     {
         var photo = GetPhotoFromSender(sender);
         if (photo is null || _vm is null) return;
 
-        _vm.MarkKeepCommand.Execute(photo);
+        await _vm.MarkKeepCommand.ExecuteAsync(photo);
         _vm.SelectedPhoto = photo;
         ApplyFilter();
     }
 
-    private void MarkReview_Click(object sender, RoutedEventArgs e)
+    private async void MarkReview_Click(object sender, RoutedEventArgs e)
     {
         var photo = GetPhotoFromSender(sender);
         if (photo is null || _vm is null) return;
 
-        _vm.MarkReviewCommand.Execute(photo);
+        await _vm.MarkReviewCommand.ExecuteAsync(photo);
         _vm.SelectedPhoto = photo;
         ApplyFilter();
     }
 
-    private void MarkDelete_Click(object sender, RoutedEventArgs e)
+    private async void MarkDelete_Click(object sender, RoutedEventArgs e)
     {
         var photo = GetPhotoFromSender(sender);
         if (photo is null || _vm is null) return;
 
-        _vm.MarkDeleteCommand.Execute(photo);
+        await _vm.MarkDeleteCommand.ExecuteAsync(photo);
         _vm.SelectedPhoto = photo;
         ApplyFilter();
     }
@@ -219,7 +219,7 @@ public sealed partial class FilteredPhotoPage : Page
                 if (await dialog.ShowAsync() == ContentDialogResult.Primary)
                 {
                     foreach (var vm in reviewPhotos)
-                        _vm.MarkDeleteCommand.Execute(vm);
+                        await _vm.MarkDeleteCommand.ExecuteAsync(vm);
                     ApplyFilter();
                 }
                 break;
@@ -235,7 +235,7 @@ public sealed partial class FilteredPhotoPage : Page
                                          or RecommendationStatus.ManualKeep)
                     .ToList();
                 foreach (var vm in keepPhotos)
-                    _vm.MarkReviewCommand.Execute(vm);
+                    await _vm.MarkReviewCommand.ExecuteAsync(vm);
                 ApplyFilter();
                 break;
             }

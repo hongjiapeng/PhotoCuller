@@ -13,7 +13,8 @@ Everything runs **100% locally**. No cloud uploads, no subscriptions, no API key
 ### 🔍 Smart Scanning
 - Recursively scans local directories for JPEG, PNG, HEIC, WEBP, BMP, TIFF
 - Reads EXIF metadata (capture time, dimensions)
-- File-change detection is implemented; the current WinUI workflow still performs a full rescan
+- Incremental scans reuse unchanged metadata, hashes, and scores while rebuilding complete groups and preserving manual keep/reject decisions
+- New results are committed atomically; cancelled or failed scans retain the previous result and pending-delete subfolders are excluded
 - Thumbnail generation and caching for fast browsing
 
 ### 🔗 Duplicate & Similar Detection
@@ -27,7 +28,7 @@ Everything runs **100% locally**. No cloud uploads, no subscriptions, no API key
 
 #### Exact duplicate detection
 
-PhotoCuller reads each file in 64 KB chunks and computes its **SHA-256** hash.
+WinUI first selects files with repeated sizes, then computes **SHA-256** in 64 KB chunks only for potential duplicates, reusing unchanged hashes. The CLI computes all file hashes by default.
 Files with the same SHA-256 digest are byte-for-byte identical, so they are
 placed in the same exact-duplicate group even when their names or directories
 differ. Photos assigned to an exact-duplicate group are excluded from the later

@@ -86,6 +86,36 @@ public sealed class DuplicateGroupingServiceTests
         groups.Should().BeEmpty();
     }
 
+    [Fact]
+    public async Task BuildGroups_ManualDeleteHighestScore_RecommendsOtherPhotoWithoutOverwritingDecision()
+    {
+        var rejected = new PhotoItem { FilePath = "rejected.jpg", Sha256Hash = "same",
+            Width = 2000, Height = 1000, OverallScore = 99, RecommendationStatus = RecommendationStatus.ManualDelete };
+        var other = new PhotoItem { FilePath = "other.jpg", Sha256Hash = "same",
+            Width = 2000, Height = 1000, OverallScore = 70 };
+
+        var groups = await _sut.BuildGroupsAsync([rejected, other]);
+
+        groups.Should().ContainSingle().Which.RecommendedPhotoId.Should().Be(other.Id);
+        rejected.RecommendationStatus.Should().Be(RecommendationStatus.ManualDelete);
+        other.RecommendationStatus.Should().Be(RecommendationStatus.Keep);
+    }
+
+    [Fact]
+    public async Task BuildGroups_AllManuallyRejected_DoesNotRecommendRejectedPhoto()
+    {
+        var photos = Enumerable.Range(0, 2).Select(i => new PhotoItem
+        {
+            FilePath = $"{i}.jpg", Sha256Hash = "same", Width = 2000, Height = 1000,
+            OverallScore = 90, RecommendationStatus = RecommendationStatus.ManualDelete,
+        }).ToList();
+
+        var groups = await _sut.BuildGroupsAsync(photos);
+
+        groups.Should().ContainSingle().Which.RecommendedPhotoId.Should().BeNull();
+        photos.Should().OnlyContain(p => p.RecommendationStatus == RecommendationStatus.ManualDelete);
+    }
+
     // ── Burst shots ───────────────────────────────────────────────────────────
 
     [Fact]

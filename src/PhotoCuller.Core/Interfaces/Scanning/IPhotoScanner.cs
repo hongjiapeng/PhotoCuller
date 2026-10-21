@@ -11,7 +11,7 @@ public interface IPhotoScanner
 {
     /// <summary>
     /// Scans the specified directory.
-    /// Processed photos are returned as an async stream so the UI can display results incrementally.
+    /// Returns the full current inventory, including detached cached photos for unchanged files.
     /// </summary>
     IAsyncEnumerable<PhotoItem> ScanAsync(
         string directory,

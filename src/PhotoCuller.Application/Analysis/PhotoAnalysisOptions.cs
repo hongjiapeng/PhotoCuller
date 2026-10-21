@@ -12,6 +12,9 @@ public sealed record PhotoAnalysisOptions
 
     public int ThumbnailMaxEdgePixels { get; init; } = 256;
 
+    /// <summary>False limits full-file hashing to repeated file sizes. CLI defaults to complete hashes.</summary>
+    public bool ComputeAllFileHashes { get; init; } = true;
+
     public static PhotoAnalysisOptions FromSettings(AppSettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);

@@ -9,6 +9,8 @@ namespace PhotoCuller.Core.Models;
 /// </summary>
 public class PhotoItem
 {
+    public const int CurrentAnalysisVersion = 1;
+
     public Guid Id { get; set; } = Guid.NewGuid();
 
     // ── Basic file information ────────────────────────────────────────
@@ -77,9 +79,21 @@ public class PhotoItem
     /// <summary>Algorithm version; a version bump triggers re-analysis.</summary>
     public int AnalysisVersion { get; set; }
 
+    /// <summary>Fingerprint of the file, scoring settings and model used for cached scores.</summary>
+    public string? ScoringSignature { get; set; }
+
     /// <summary>Soft-delete flag indicating the photo has been moved to the pending-delete folder.</summary>
     public bool IsMovedToTrash { get; set; }
 
     // ── Navigation properties ────────────────────────────────────────
     public PhotoGroup? Group { get; set; }
+
+    /// <summary>Detached working copy so cancelled analysis cannot mutate the displayed snapshot.</summary>
+    public PhotoItem CreateSnapshot()
+    {
+        var copy = (PhotoItem)MemberwiseClone();
+        copy.Tags = [.. Tags];
+        copy.Group = null;
+        return copy;
+    }
 }

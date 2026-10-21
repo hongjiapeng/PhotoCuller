@@ -116,31 +116,31 @@ public sealed partial class PhotoDetailPanel : UserControl
         _openLocation?.OpenInExplorer(SelectedPhoto.FilePath);
     }
 
-    private void BtnFavorite_Click(object sender, RoutedEventArgs e)
+    private async void BtnFavorite_Click(object sender, RoutedEventArgs e)
     {
         if (SelectedPhoto is null) return;
         var vm = App.Services.GetService(typeof(
             PhotoCuller.App.WinUI.ViewModels.MainViewModel))
             as PhotoCuller.App.WinUI.ViewModels.MainViewModel;
-        vm?.MarkKeepCommand.Execute(SelectedPhoto);
+        if (vm is not null) await vm.MarkKeepCommand.ExecuteAsync(SelectedPhoto);
     }
 
-    private void BtnMarkDelete_Click(object sender, RoutedEventArgs e)
+    private async void BtnMarkDelete_Click(object sender, RoutedEventArgs e)
     {
         if (SelectedPhoto is null) return;
         var vm = App.Services.GetService(typeof(
             PhotoCuller.App.WinUI.ViewModels.MainViewModel))
             as PhotoCuller.App.WinUI.ViewModels.MainViewModel;
-        vm?.MarkDeleteCommand.Execute(SelectedPhoto);
+        if (vm is not null) await vm.MarkDeleteCommand.ExecuteAsync(SelectedPhoto);
     }
 
-    private void BtnMarkReview_Click(object sender, RoutedEventArgs e)
+    private async void BtnMarkReview_Click(object sender, RoutedEventArgs e)
     {
         if (SelectedPhoto is null) return;
         var vm = App.Services.GetService(typeof(
             PhotoCuller.App.WinUI.ViewModels.MainViewModel))
             as PhotoCuller.App.WinUI.ViewModels.MainViewModel;
-        vm?.MarkReviewCommand.Execute(SelectedPhoto);
+        if (vm is not null) await vm.MarkReviewCommand.ExecuteAsync(SelectedPhoto);
     }
 
     private async void BtnAiReason_Click(object sender, RoutedEventArgs e)

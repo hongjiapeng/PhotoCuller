@@ -261,7 +261,7 @@ public sealed partial class SimilarGroupsPage : Page
         if (await dialog.ShowAsync() == ContentDialogResult.Primary)
         {
             foreach (var photo in group.Photos.Where(p => !p.IsKeep))
-                _vm.MarkDeleteCommand.Execute(photo);
+                await _vm.MarkDeleteCommand.ExecuteAsync(photo);
 
             await _vm.MoveMarkedToTrashCommand.ExecuteAsync(null);
             RefreshStatusBar();
@@ -392,7 +392,7 @@ public sealed partial class SimilarGroupsPage : Page
             : text;
     }
 
-    private void Root_KeyDown(object sender, KeyRoutedEventArgs e)
+    private async void Root_KeyDown(object sender, KeyRoutedEventArgs e)
     {
         if (_vm is null || IsTextInputFocused())
             return;
@@ -434,13 +434,13 @@ public sealed partial class SimilarGroupsPage : Page
                 e.Handled = true;
                 break;
             case VirtualKey.K:
-                _vm.MarkAsKeepCommand.Execute(null);
                 e.Handled = true;
+                await _vm.MarkAsKeepCommand.ExecuteAsync(null);
                 break;
             case VirtualKey.D:
-                _vm.MarkAsDeleteCommand.Execute(null);
-                RefreshStatusBar();
                 e.Handled = true;
+                await _vm.MarkAsDeleteCommand.ExecuteAsync(null);
+                RefreshStatusBar();
                 break;
         }
     }

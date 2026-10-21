@@ -34,8 +34,8 @@ public sealed class PhotoGroupRepository : IPhotoGroupRepository
 
     public async Task UpdateAsync(PhotoGroup group, CancellationToken ct = default)
     {
-        _db.PhotoGroups.Update(group);
-        await _db.SaveChangesAsync(ct);
+        await _db.PhotoGroups.Where(g => g.Id == group.Id).ExecuteUpdateAsync(
+            update => update.SetProperty(g => g.RecommendedPhotoId, group.RecommendedPhotoId), ct);
     }
 
     public async Task DeleteAllAsync(CancellationToken ct = default)

@@ -1,4 +1,5 @@
 using PhotoCuller.Core.Models;
+using PhotoCuller.Core.Enums;
 
 namespace PhotoCuller.Core.Interfaces.Storage;
 
@@ -25,6 +26,7 @@ public interface IPhotoRepository
     Task AddRangeAsync(IEnumerable<PhotoItem> photos, CancellationToken ct = default);
 
     Task UpdateAsync(PhotoItem photo, CancellationToken ct = default);
+    Task UpdateRecommendationAsync(Guid id, RecommendationStatus status, CancellationToken ct = default);
     Task DeleteAsync(Guid id, CancellationToken ct = default);
 
     /// <summary>Deletes ALL photos from the table. Used before a full re-scan.</summary>
