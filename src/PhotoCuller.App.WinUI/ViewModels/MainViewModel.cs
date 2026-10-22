@@ -532,6 +532,7 @@ public sealed partial class MainViewModel : ObservableObject
     /// </summary>
     public async Task LoadFromDatabaseAsync(CancellationToken ct = default)
     {
+        if (IsScanning) return;
         var loadVersion = Volatile.Read(ref _dataVersion);
 
         try
@@ -544,7 +545,7 @@ public sealed partial class MainViewModel : ObservableObject
             // scan owns the in-memory collections now. Applying this stale
             // snapshot would clear the freshly scanned photos and leave empty
             // group rows on screen.
-            if (loadVersion != Volatile.Read(ref _dataVersion))
+            if (IsScanning || loadVersion != Volatile.Read(ref _dataVersion))
             {
                 _logger.LogDebug(
                     "Skipping stale database load (version {LoadVersion}, current {CurrentVersion})",
@@ -621,35 +622,94 @@ public sealed partial class MainViewModel : ObservableObject
         var allPhotos = new List<PhotoItem>();
         // Drain pending decision writes before taking the input snapshot.
         await _dataGate.WaitAsync();
+        var previousDisplay = AllPhotos.ToArray();
+        var previousGroups = Groups.ToArray();
+        var previousSelection = SelectedPhoto;
+        var previousGroup = SelectedGroup;
+        var previousCompare = ComparePhoto;
+        var previousInspect = InspectPhoto;
+        var previousViewMode = CurrentViewMode;
+        var resultsCommitted = false;
+        var acceptProgress = true;
+
+        void RestorePreviousDisplay()
+        {
+            AllPhotos.Clear();
+            Groups.Clear();
+            foreach (var photo in previousDisplay)
+                AllPhotos.Add(photo);
+            foreach (var group in previousGroups)
+                Groups.Add(group);
+            SelectedGroup = previousGroup;
+            ComparePhoto = previousCompare;
+            InspectPhoto = previousInspect;
+            SelectedPhoto = previousSelection;
+            CurrentViewMode = previousViewMode;
+            TotalPhotoCount = AllPhotos.Count;
+            GroupCount = Groups.Count;
+            RefreshCounts();
+            UpdatePhotoSelectionFlags();
+        }
 
         try
         {
-            // Reset progress so the previous scan's InfoBar is dismissed
             ScanProgress = ScanProgress.Idle;
+            SelectedGroup = null;
+            SelectedPhoto = null;
+            CurrentViewMode = SimilarGroupViewMode.Browse;
+            AllPhotos.Clear();
+            Groups.Clear();
+            TotalPhotoCount = 0;
+            GroupCount = 0;
+            RefreshCounts();
 
             var previousPhotos = await _photoRepo.GetAllAsync(_scanCts.Token);
             var appSettings = await _settings.LoadAsync(_scanCts.Token);
             var analysisRun = await _analysisEngine.AnalyzeAsync(
                 sourceDirectory,
-                PhotoAnalysisOptions.FromSettings(appSettings) with { ComputeAllFileHashes = false },
-                new Progress<ScanProgress>(progress => ScanProgress = progress),
+                PhotoAnalysisOptions.FromSettings(appSettings) with
+                {
+                    ComputeAllFileHashes = false,
+                    OnPhotoReady = async (photo, ct) =>
+                    {
+                        // The engine awaits this callback on the calling UI context.
+                        // Yield after each card so cached scans also let the UI render.
+                        ct.ThrowIfCancellationRequested();
+                        var vm = new PhotoItemViewModel(photo, animateScanEntrance: true);
+                        AllPhotos.Add(vm);
+                        TotalPhotoCount = AllPhotos.Count;
+                        if (vm.IsKeep) KeepCount++;
+                        if (vm.Status == RecommendationStatus.Review) PendingCount++;
+                        if (vm.Status is RecommendationStatus.ToDelete or RecommendationStatus.ManualDelete
+                            || vm.IsMovedToTrash) TrashCount++;
+                        await Task.Yield();
+                        ct.ThrowIfCancellationRequested();
+                    },
+                },
+                new Progress<ScanProgress>(progress =>
+                {
+                    if (acceptProgress) ScanProgress = progress;
+                }),
                 _scanCts.Token);
             allPhotos.AddRange(analysisRun.Photos);
             var photoGroups = analysisRun.Groups;
 
-            // Keep both the displayed and persisted snapshot until every analysis stage succeeds.
+            // Preview cards are provisional; replace persisted results only after all stages succeed.
             await _analysisResults.ReplaceAsync(analysisRun.Photos, photoGroups, _scanCts.Token);
+            resultsCommitted = true;
             Interlocked.Increment(ref _dataVersion);
             var activePaths = allPhotos.Select(p => p.FilePath).ToHashSet(StringComparer.OrdinalIgnoreCase);
             allPhotos.AddRange(previousPhotos.Where(p => p.IsMovedToTrash && !activePaths.Contains(p.FilePath))
                 .Select(p => { var copy = p.CreateSnapshot(); copy.GroupId = null; return copy; }));
 
-            AllPhotos.Clear();
-            Groups.Clear();
-            SelectedGroup = null;
-            SelectedPhoto = null;
+            var previewMap = AllPhotos.ToDictionary(vm => vm.Id);
             foreach (var photo in allPhotos)
-                AllPhotos.Add(new PhotoItemViewModel(photo));
+            {
+                if (previewMap.TryGetValue(photo.Id, out var preview))
+                    preview.UpdateAnalysis(photo);
+                else
+                    AllPhotos.Add(new PhotoItemViewModel(photo));
+            }
 
             TotalPhotoCount = allPhotos.Count;
 
@@ -689,6 +749,7 @@ public sealed partial class MainViewModel : ObservableObject
             try { await _settings.SaveAsync(appSettings, CancellationToken.None); }
             catch (Exception ex) { _logger.LogWarning(ex, "Could not save last directory after scan"); }
 
+            acceptProgress = false;
             ScanProgress = Core.Models.ScanProgress.Completed(
                 allPhotos.Count, started.ToUniversalTime());
 
@@ -698,16 +759,22 @@ public sealed partial class MainViewModel : ObservableObject
         }
         catch (OperationCanceledException)
         {
-            ScanProgress = Core.Models.ScanProgress.Cancelled(allPhotos.Count, allPhotos.Count);
-            _notifications.ShowWarning("扫描已取消");
+            acceptProgress = false;
+            ScanProgress = Core.Models.ScanProgress.Cancelled(AllPhotos.Count, AllPhotos.Count);
+            if (!resultsCommitted) RestorePreviousDisplay();
+            _notifications.ShowWarning("扫描已取消，已恢复上次结果");
         }
         catch (Exception ex)
         {
+            acceptProgress = false;
+            if (!resultsCommitted) RestorePreviousDisplay();
+            ScanProgress = new ScanProgress(ScanPhase.Failed, 0, 0, Message: ex.Message);
             _logger.LogError(ex, "Scan failed");
             _notifications.ShowError($"扫描失败：{ex.Message}");
         }
         finally
         {
+            acceptProgress = false;
             _dataGate.Release();
             IsScanning = false;
             _scanCts?.Dispose();

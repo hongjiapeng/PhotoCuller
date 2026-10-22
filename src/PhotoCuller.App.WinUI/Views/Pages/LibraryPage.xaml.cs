@@ -4,9 +4,14 @@ using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Microsoft.UI.Xaml.Navigation;
+using Microsoft.UI.Xaml.Hosting;
 using PhotoCuller.App.WinUI.ViewModels;
 using PhotoCuller.Core.Enums;
+using System.Collections.ObjectModel;
+using System.Collections.Specialized;
+using System.Numerics;
 using Windows.System;
+using Windows.UI.ViewManagement;
 
 namespace PhotoCuller.App.WinUI.Views.Pages;
 
@@ -16,7 +21,10 @@ public sealed partial class LibraryPage : Page
     private string _filterTag = "all";
     private string _sortTag = "score";
     private string _searchQuery = string.Empty;
-    private List<PhotoItemViewModel> _visiblePhotos = [];
+    private readonly ObservableCollection<PhotoItemViewModel> _visiblePhotos = [];
+    private readonly UISettings _uiSettings = new();
+    private bool _isActive;
+    private bool _refreshQueued;
     private PhotoItemViewModel? _selectedLibraryPhoto;
     private PhotoItemViewModel? _inspectPhoto;
     private string? _inspectImagePath;
@@ -26,6 +34,8 @@ public sealed partial class LibraryPage : Page
     public LibraryPage()
     {
         InitializeComponent();
+        PhotoGrid.ItemsSource = _visiblePhotos;
+        InspectFilmstrip.ItemsSource = _visiblePhotos;
         InspectScrollViewer.SizeChanged += (_, _) =>
         {
             if (_isInspectMode && _isFitToWindow)
@@ -40,37 +50,90 @@ public sealed partial class LibraryPage : Page
         if (_vm is null)
             return;
 
+        _isActive = true;
         _vm.PropertyChanged += Vm_PropertyChanged;
+        _vm.AllPhotos.CollectionChanged += Photos_CollectionChanged;
         if (_vm.AllPhotos.Count == 0)
             await _vm.LoadFromDatabaseAsync();
 
+        if (!_isActive) return;
         ApplyFilters();
         UpdateEmptyState();
+        UpdateScanProgress();
         Root.Focus(FocusState.Programmatic);
     }
 
     protected override void OnNavigatedFrom(NavigationEventArgs e)
     {
         base.OnNavigatedFrom(e);
+        _isActive = false;
         if (_vm is not null)
+        {
             _vm.PropertyChanged -= Vm_PropertyChanged;
+            _vm.AllPhotos.CollectionChanged -= Photos_CollectionChanged;
+        }
     }
 
     private void Vm_PropertyChanged(
         object? sender,
         System.ComponentModel.PropertyChangedEventArgs e)
     {
-        DispatcherQueue.TryEnqueue(() =>
+        void Update()
         {
+            if (!_isActive) return;
             if (e.PropertyName == nameof(MainViewModel.ScanProgress))
                 UpdateScanProgress();
 
             if (e.PropertyName is nameof(MainViewModel.AllPhotos)
                                   or nameof(MainViewModel.IsScanning))
             {
-                ApplyFilters();
+                if (_vm?.IsScanning == true) ExitInspectMode();
+                ApplyFilters(preferViewModelSelection: true);
                 UpdateEmptyState();
+                UpdateScanProgress();
             }
+        }
+
+        if (DispatcherQueue.HasThreadAccess) Update();
+        else DispatcherQueue.TryEnqueue(Update);
+    }
+
+    private void Photos_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        if (_vm?.IsScanning == true)
+        {
+            if (e.Action == NotifyCollectionChangedAction.Reset)
+            {
+                ExitInspectMode();
+                _inspectPhoto = null;
+                _inspectImagePath = null;
+                InspectImage.Source = null;
+                _visiblePhotos.Clear();
+                SelectPhoto(null);
+            }
+            else if (e.Action == NotifyCollectionChangedAction.Add && e.NewItems is not null)
+            {
+                foreach (PhotoItemViewModel photo in e.NewItems)
+                {
+                    if (!MatchesFilters(photo)) continue;
+                    _visiblePhotos.Add(photo);
+                    if (_selectedLibraryPhoto is null) SelectPhoto(photo);
+                }
+            }
+            else ApplyFilters();
+
+            UpdateEmptyState();
+            return;
+        }
+
+        // A database load adds many rows in one UI turn. Refresh once for the batch.
+        if (_refreshQueued) return;
+        _refreshQueued = DispatcherQueue.TryEnqueue(() =>
+        {
+            _refreshQueued = false;
+            if (!_isActive) return;
+            ApplyFilters();
+            UpdateEmptyState();
         });
     }
 
@@ -104,31 +167,32 @@ public sealed partial class LibraryPage : Page
         }
     }
 
-    private void ApplyFilters()
+    private bool MatchesFilters(PhotoItemViewModel photo)
+    {
+        if (!string.IsNullOrEmpty(_searchQuery)
+            && !photo.FileName.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        return _filterTag switch
+        {
+            "keep" => photo.IsKeep,
+            "review" => photo.Status == RecommendationStatus.Review,
+            "duplicate" => photo.Model.GroupId.HasValue,
+            "low" => photo.OverallScore.HasValue && photo.OverallScore < 50,
+            "error" => !string.IsNullOrEmpty(photo.ErrorMessage),
+            _ => true,
+        };
+    }
+
+    private void ApplyFilters(bool preferViewModelSelection = false)
     {
         if (_vm is null)
             return;
 
-        IEnumerable<PhotoItemViewModel> source = _vm.AllPhotos;
-        if (!string.IsNullOrEmpty(_searchQuery))
-        {
-            source = source.Where(photo =>
-                photo.FileName.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase));
-        }
+        IEnumerable<PhotoItemViewModel> source = _vm.AllPhotos.Where(MatchesFilters);
 
-        source = _filterTag switch
-        {
-            "keep" => source.Where(photo => photo.IsKeep),
-            "review" => source.Where(photo => photo.Status == RecommendationStatus.Review),
-            "duplicate" => source.Where(photo => photo.Model.GroupId.HasValue),
-            "low" => source.Where(photo =>
-                photo.OverallScore.HasValue && photo.OverallScore < 50),
-            "error" => source.Where(photo =>
-                !string.IsNullOrEmpty(photo.ErrorMessage)),
-            _ => source,
-        };
-
-        source = _sortTag switch
+        // Keep arrival order until analysis has finished; score changes must not move cards.
+        if (!_vm.IsScanning) source = _sortTag switch
         {
             "time" => source.OrderByDescending(photo =>
                 photo.Model.ExifTakenTime ?? photo.Model.CreatedTime),
@@ -137,11 +201,14 @@ public sealed partial class LibraryPage : Page
             _ => source.OrderByDescending(photo => photo.OverallScore ?? 0),
         };
 
-        _visiblePhotos = source.ToList();
-        PhotoGrid.ItemsSource = _visiblePhotos;
-        InspectFilmstrip.ItemsSource = _visiblePhotos;
+        var filtered = source.ToList();
+        _visiblePhotos.Clear();
+        foreach (var photo in filtered) _visiblePhotos.Add(photo);
 
-        var selected = _selectedLibraryPhoto is not null
+        var selected = preferViewModelSelection && _vm.SelectedPhoto is not null
+                       && _visiblePhotos.Contains(_vm.SelectedPhoto)
+            ? _vm.SelectedPhoto
+            : _selectedLibraryPhoto is not null
                        && _visiblePhotos.Contains(_selectedLibraryPhoto)
             ? _selectedLibraryPhoto
             : _vm.SelectedPhoto is not null
@@ -160,6 +227,60 @@ public sealed partial class LibraryPage : Page
         EmptyState.Visibility = _visiblePhotos.Count > 0
             ? Visibility.Collapsed
             : Visibility.Visible;
+        var hasFilters = _filterTag != "all" || !string.IsNullOrEmpty(_searchQuery);
+        EmptyStateTitle.Text = _vm?.IsScanning == true ? "正在读取照片…"
+            : hasFilters ? "没有匹配的照片" : "暂无照片";
+        EmptyStateHint.Text = _vm?.IsScanning == true
+            ? hasFilters ? "扫描结果将持续更新，可切换到全部照片查看" : "缩略图准备好后将在这里逐张显示"
+            : hasFilters ? "请调整搜索或筛选条件" : "请在左侧选择目录后开始扫描";
+    }
+
+    private void PhotoCard_Loaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement card) AnimatePhotoCard(card);
+    }
+
+    private void PhotoCard_DataContextChanged(FrameworkElement sender, DataContextChangedEventArgs e)
+    {
+        if (sender.IsLoaded) AnimatePhotoCard(sender);
+    }
+
+    private void PhotoCard_Unloaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement card) ResetCardAnimation(card);
+    }
+
+    private static void ResetCardAnimation(FrameworkElement card)
+    {
+        ElementCompositionPreview.SetIsTranslationEnabled(card, true);
+        var visual = ElementCompositionPreview.GetElementVisual(card);
+        visual.StopAnimation("Opacity");
+        visual.StopAnimation("Translation");
+        visual.Opacity = 1;
+        visual.Properties.InsertVector3("Translation", Vector3.Zero);
+    }
+
+    private void AnimatePhotoCard(FrameworkElement card)
+    {
+        ResetCardAnimation(card);
+        if (card.DataContext is not PhotoItemViewModel photo
+            || !photo.ConsumeScanEntrance() || _vm?.IsScanning != true
+            || !_uiSettings.AnimationsEnabled)
+            return;
+
+        var visual = ElementCompositionPreview.GetElementVisual(card);
+        var compositor = visual.Compositor;
+        var easing = compositor.CreateCubicBezierEasingFunction(new Vector2(0.16f, 1), new Vector2(0.3f, 1));
+        var opacity = compositor.CreateScalarKeyFrameAnimation();
+        opacity.InsertKeyFrame(0, 0);
+        opacity.InsertKeyFrame(1, 1, easing);
+        opacity.Duration = TimeSpan.FromMilliseconds(180);
+        var translation = compositor.CreateVector3KeyFrameAnimation();
+        translation.InsertKeyFrame(0, new Vector3(0, 8, 0));
+        translation.InsertKeyFrame(1, Vector3.Zero, easing);
+        translation.Duration = opacity.Duration;
+        visual.StartAnimation("Opacity", opacity);
+        visual.StartAnimation("Translation", translation);
     }
 
     private void SelectPhoto(PhotoItemViewModel? photo)

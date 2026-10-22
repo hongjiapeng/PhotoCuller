@@ -7,9 +7,33 @@ namespace PhotoCuller.App.WinUI.ViewModels;
 /// <summary>View-model wrapper around a PhotoItem for UI binding.</summary>
 public sealed partial class PhotoItemViewModel : ObservableObject
 {
-    public PhotoItem Model { get; }
+    public PhotoItem Model { get; private set; }
+    private bool _animateScanEntrance;
 
-    public PhotoItemViewModel(PhotoItem model) => Model = model;
+    public PhotoItemViewModel(PhotoItem model, bool animateScanEntrance = false)
+    {
+        Model = model;
+        _animateScanEntrance = animateScanEntrance;
+    }
+
+    /// <summary>Replaces the preview with its completed analysis without replacing the card.</summary>
+    public void UpdateAnalysis(PhotoItem model)
+    {
+        if (model.Id != Id)
+            throw new ArgumentException("The completed photo must match the preview.", nameof(model));
+
+        Model = model;
+        _animateScanEntrance = false;
+        OnPropertyChanged(string.Empty);
+    }
+
+    /// <summary>Virtualization and sorting must not replay scan entrance animations.</summary>
+    public bool ConsumeScanEntrance()
+    {
+        var animate = _animateScanEntrance;
+        _animateScanEntrance = false;
+        return animate;
+    }
 
     public Guid   Id             => Model.Id;
     public string FileName       => Model.FileName;

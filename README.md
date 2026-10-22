@@ -14,6 +14,7 @@ Everything runs **100% locally**. No cloud uploads, no subscriptions, no API key
 - Recursively scans local directories for JPEG, PNG, HEIC, WEBP, BMP, TIFF
 - Reads EXIF metadata (capture time, dimensions)
 - Incremental scans reuse unchanged metadata, hashes, and scores while rebuilding complete groups and preserving manual keep/reject decisions
+- Starting a scan clears the previous grid; thumbnails appear progressively with a short entrance animation (respects Windows animation settings), then the selected sort is applied after analysis
 - New results are committed atomically; cancelled or failed scans retain the previous result and pending-delete subfolders are excluded
 - Thumbnail generation and caching for fast browsing
 

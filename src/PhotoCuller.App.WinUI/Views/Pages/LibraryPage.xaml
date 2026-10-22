@@ -138,6 +138,9 @@
                               Margin="4"
                               Tag="{x:Bind Id}"
                               ToolTipService.ToolTip="{x:Bind FileName}"
+                              Loaded="PhotoCard_Loaded"
+                              Unloaded="PhotoCard_Unloaded"
+                              DataContextChanged="PhotoCard_DataContextChanged"
                               DoubleTapped="PhotoCard_DoubleTapped">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="124"/>
@@ -148,12 +151,12 @@
                                     CornerRadius="{ThemeResource ControlCornerRadius}"
                                     Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
                                 <Grid>
-                                    <Image Source="{x:Bind ThumbnailPath, Converter={StaticResource PathToImage}}"
+                                    <Image Source="{x:Bind ThumbnailPath, Converter={StaticResource PathToImage}, Mode=OneWay}"
                                            Stretch="UniformToFill"/>
 
                                     <Border Background="#CC1A1A1A"
                                             CornerRadius="{ThemeResource ControlCornerRadius}"
-                                            Visibility="{x:Bind ErrorMessage, Converter={StaticResource StringToVis}}">
+                                            Visibility="{x:Bind ErrorMessage, Converter={StaticResource StringToVis}, Mode=OneWay}">
                                         <StackPanel VerticalAlignment="Center"
                                                     HorizontalAlignment="Center"
                                                     Spacing="4">
@@ -172,7 +175,7 @@
                                             Background="#CC000000"
                                             CornerRadius="4,0,4,0"
                                             Padding="5,2">
-                                        <TextBlock Text="{x:Bind OverallScore, Converter={StaticResource ScoreConv}}"
+                                        <TextBlock Text="{x:Bind OverallScore, Converter={StaticResource ScoreConv}, Mode=OneWay}"
                                                    Style="{StaticResource BodyStrongTextBlockStyle}"
                                                    Foreground="White"/>
                                     </Border>
@@ -181,8 +184,8 @@
                                             HorizontalAlignment="Left"
                                             CornerRadius="4,0,4,0"
                                             Padding="5,2"
-                                            Background="{x:Bind Status, Converter={StaticResource StatusBrush}}">
-                                        <TextBlock Text="{x:Bind Status, Converter={StaticResource StatusLabel}}"
+                                            Background="{x:Bind Status, Converter={StaticResource StatusBrush}, Mode=OneWay}">
+                                        <TextBlock Text="{x:Bind Status, Converter={StaticResource StatusLabel}, Mode=OneWay}"
                                                    Style="{StaticResource CaptionTextBlockStyle}"
                                                    Foreground="White"
                                                    FontWeight="SemiBold"/>
@@ -223,11 +226,13 @@
                         Spacing="12"
                         Visibility="Collapsed">
                 <FontIcon Glyph="&#xEB9F;" FontSize="56" Opacity="0.25"/>
-                <TextBlock Text="暂无照片"
+                <TextBlock x:Name="EmptyStateTitle"
+                           Text="暂无照片"
                            Style="{StaticResource SubtitleTextBlockStyle}"
                            Opacity="0.4"
                            HorizontalAlignment="Center"/>
-                <TextBlock Text="请在左侧选择目录后开始扫描"
+                <TextBlock x:Name="EmptyStateHint"
+                           Text="请在左侧选择目录后开始扫描"
                            Style="{StaticResource CaptionTextBlockStyle}"
                            Opacity="0.3"
                            HorizontalAlignment="Center"/>
@@ -398,7 +403,7 @@
                                     CornerRadius="{ThemeResource ControlCornerRadius}"
                                     Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
                                 <Grid>
-                                    <Image Source="{x:Bind ThumbnailPath, Converter={StaticResource PathToImage}}"
+                                    <Image Source="{x:Bind ThumbnailPath, Converter={StaticResource PathToImage}, Mode=OneWay}"
                                            Stretch="UniformToFill"/>
                                     <Border VerticalAlignment="Bottom"
                                             Background="#B0000000"

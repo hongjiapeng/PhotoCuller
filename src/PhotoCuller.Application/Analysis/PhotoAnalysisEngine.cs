@@ -94,6 +94,11 @@ public sealed class PhotoAnalysisEngine : IPhotoAnalysisEngine
                         cancellationToken);
                 }
 
+                cancellationToken.ThrowIfCancellationRequested();
+                if (options.OnPhotoReady is not null)
+                    await options.OnPhotoReady(photo.CreateSnapshot(), cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
+
                 progress?.Report(new ScanProgress(
                     ScanPhase.ComputingHashes,
                     current,
