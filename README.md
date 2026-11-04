@@ -1,5 +1,7 @@
 # PhotoCuller
 
+[English](README.md) | [简体中文](README.zh-CN.md)
+
 **Intelligently identify duplicate and similar photos, helping you keep every photo worth treasuring.**
 
 PhotoCuller is a local photo curation tool for Windows. It scans a directory of photos, detects duplicates and similar shots, scores each image across multiple quality dimensions, and recommends the best photo in each group — so you can safely remove the rest.
@@ -437,6 +439,11 @@ model weights, and datasets retain their own licences and terms; verify those
 terms before redistributing an exported model or third-party weights.
 
 ---
+
+## Contributing
+
+Issues and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md)
+for development, validation, and bug-reporting guidance.
 
 ## License
 

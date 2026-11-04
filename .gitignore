@@ -37,6 +37,29 @@ appsettings.local.json
 *.swp
 *~
 
+## Local agent settings and work notes
+.claude/
+.testagent/
+
+## Build and test artifacts
+artifacts/
+TestResults/
+
+## Python export helpers
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+## Local secrets and signing files
+.env
+.env.*
+!.env.example
+*.pfx
+*.p12
+*.key
+.keystore
+
 ## OS
 Thumbs.db
 .DS_Store
