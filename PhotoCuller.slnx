@@ -4,6 +4,18 @@
     <Platform Name="x64" />
   </Configurations>
   <Folder Name="/src/">
+    <Project Path="src/GroupTake.Poc.Imaging/GroupTake.Poc.Imaging.csproj">
+      <Platform Solution="*|x64" Project="x64" />
+    </Project>
+    <Project Path="src/GroupTake.Poc.Runner/GroupTake.Poc.Runner.csproj">
+      <Platform Solution="*|x64" Project="x64" />
+    </Project>
+    <Project Path="src/GroupTake.Poc.Tests/GroupTake.Poc.Tests.csproj">
+      <Platform Solution="*|x64" Project="x64" />
+    </Project>
+    <Project Path="src/GroupTake.Poc.WinUI/GroupTake.Poc.WinUI.csproj">
+      <Platform Project="x64" />
+    </Project>
     <Project Path="src/PhotoCuller.App.WinUI/PhotoCuller.App.WinUI.csproj">
       <Platform Solution="*|x64" Project="x64" />
     </Project>

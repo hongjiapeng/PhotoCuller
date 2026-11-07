@@ -1,0 +1,986 @@
+{
+  "date": "2026-11-06",
+  "timeZone": "Asia/Shanghai",
+  "branch": "experiment/group-take-poc",
+  "baseCommit": "fe1232e",
+  "scope": "Manual whole-head replacement, revised explicitly by user; legacy face experiment retained behind collapsed settings",
+  "solutionBuild": {
+    "tool": "VS 18 Enterprise MSBuild",
+    "configuration": "Debug",
+    "platform": "x64",
+    "target": "Rebuild",
+    "exitCode": 0,
+    "warnings": 352,
+    "errors": 0,
+    "log": "artifacts/GroupTake/solution-build.log"
+  },
+  "pocTests": {
+    "passed": 31,
+    "failed": 0,
+    "total": 31,
+    "tests": [
+      "GroupTake.Poc.Tests.HeadReplacementTests.WholeHead_DebugExportRecordsManualBasisAndNullReprojectionError",
+      "GroupTake.Poc.Tests.ImagingTests.Alignment_RecoversKnownScaleRotationTranslation",
+      "GroupTake.Poc.Tests.HeadReplacementTests.WholeHead_CancelledBeforeProcessing_DoesNotReturnResult",
+      "GroupTake.Poc.Tests.ImagingTests.Feather_IsInward_AndRadiusChangesBoundaryWeight",
+      "GroupTake.Poc.Tests.HeadReplacementTests.WholeHead_DebugFailureKeepsReasonWithoutCopyingPrivatePhotos",
+      "GroupTake.Poc.Tests.ImagingTests.Alignment_RejectsLargeSingleLandmarkOutlier",
+      "GroupTake.Poc.Tests.HeadReplacementTests.WholeHead_TargetProtectionKeepsClothesInsideEllipseUnchanged",
+      "GroupTake.Poc.Tests.HeadReplacementTests.WholeHead_SourceProtectionPreventsClothesMovingIntoTarget",
+      "GroupTake.Poc.Tests.ImagingTests.Compose_PreservesOutsideMaskAndInputs_ChangesRealSourceFeatures(method: Alpha)",
+      "GroupTake.Poc.Tests.PhotoCodecTests.Load_ExifOrientationAndBgr_AreCorrectWithoutChangingOriginal(orientation: 6, width: 20, height: 40)",
+      "GroupTake.Poc.Tests.ImagingTests.Mask_ContainsFeatures_ExcludesHairAndOutsideFace",
+      "GroupTake.Poc.Tests.HeadReplacementTests.WholeHead_24MPWithDifferentSourceSize_PreservesNativeResolution",
+      "GroupTake.Poc.Tests.HeadReplacementTests.WholeHead_TransfersHairEyesAndMouthTogetherWithoutLandmarks_ProtectsOutside",
+      "GroupTake.Poc.Tests.PhotoCodecTests.Load_ExifOrientationAndBgr_AreCorrectWithoutChangingOriginal(orientation: 8, width: 20, height: 40)",
+      "GroupTake.Poc.Tests.ImagingTests.Compose_RejectsEmptyImagesInvalidOptionsAndUncoveredSource",
+      "GroupTake.Poc.Tests.ImagingTests.Compose_PreservesOutsideMaskAndInputs_ChangesRealSourceFeatures(method: MixedClone)",
+      "GroupTake.Poc.Tests.HeadReplacementTests.WholeHead_RejectsInvalidProtectionCoordinatesAndRadius",
+      "GroupTake.Poc.Tests.PhotoCodecTests.Load_ExifOrientationAndBgr_AreCorrectWithoutChangingOriginal(orientation: 1, width: 40, height: 20)",
+      "GroupTake.Poc.Tests.DebugAndDetectionTests.Detection_MissingModelAndCancellation_AreExplicitErrors",
+      "GroupTake.Poc.Tests.PhotoCodecTests.Export_RoundTripsNativeDimensionsAndColor_RejectsOverwriteAndOriginal(extension: \".jpg\")",
+      "GroupTake.Poc.Tests.HeadReplacementTests.WholeHead_UsesUniformScaleAndExplicitAdjustmentsWithoutShear",
+      "GroupTake.Poc.Tests.DebugAndDetectionTests.DebugCase_FailureIsRecorded_CancellationLeavesNoPartialDirectory",
+      "GroupTake.Poc.Tests.PhotoCodecTests.Export_InvalidParametersLeaveNoFile",
+      "GroupTake.Poc.Tests.HeadReplacementTests.WholeHead_RejectsInvalidBoxShapeAndAdjustment",
+      "GroupTake.Poc.Tests.ImagingTests.Viewport_RejectsLetterbox_AndRoundTripsZoomPan",
+      "GroupTake.Poc.Tests.PhotoCodecTests.Export_RoundTripsNativeDimensionsAndColor_RejectsOverwriteAndOriginal(extension: \".png\")",
+      "GroupTake.Poc.Tests.DebugAndDetectionTests.DebugCase_ExportsAllMethodsMatrixAndPixelProtectionMetrics",
+      "GroupTake.Poc.Tests.ImagingTests.CancelledOperations_DoNotComposeOrCreateExport",
+      "GroupTake.Poc.Tests.ImagingTests.Compose_PreservesOutsideMaskAndInputs_ChangesRealSourceFeatures(method: NormalClone)",
+      "GroupTake.Poc.Tests.ImagingTests.Compose_24MegapixelsAndDifferentSourceResolution_UsesNativeBaseSize",
+      "GroupTake.Poc.Tests.ImagingTests.Alignment_RejectsMissingReversedAndNonFiniteLandmarks"
+    ]
+  },
+  "existingTests": {
+    "passed": 117,
+    "failed": 0,
+    "total": 117,
+    "tests": [
+      "PhotoCuller.Tests.CoreTests.ScoringWeightsTests.Default_SumsTo100",
+      "PhotoCuller.Tests.InfrastructureTests.PhotoScannerTests.ScanAsync_InvalidatedFile_ReReadsMetadataAndPreservesIdentityAndDecision(change: \"previous-error\")",
+      "PhotoCuller.Tests.InfrastructureTests.ThumbnailServiceTests.GetOrCreateAsync_PreCancelled_DoesNotPublishThumbnail",
+      "PhotoCuller.Tests.CoreTests.DuplicateGroupingServiceTests.BuildGroups_NormalPreset_NearbySequentialPhotosStayTogetherAsSimilar",
+      "PhotoCuller.Tests.InfrastructureTests.AnalysisResultRepositoryTests.ReplaceAsync_InsertFailure_RollsBackPreviousSnapshot",
+      "PhotoCuller.Tests.InfrastructureTests.FileMoveServiceTests.MoveToTrash_MovesFile_AndLogsSuccess",
+      "PhotoCuller.Tests.CoreTests.ApiKeyProtectorTests.Decrypt_EmptyString_ThrowsArgumentException",
+      "PhotoCuller.Tests.CoreTests.DuplicateGroupingServiceTests.FromSettings_BasicPreset_UsesCompleteProfile(preset: Loose, expectedGlobal: 16, expectedGlobalDifference: 20, expectedSequence: 32, expectedSequenceDifference: 30, expectedWindow: 300, expectedNumberGap: 1)",
+      "PhotoCuller.Tests.ApplicationTests.PhotoAnalysisEngineTests.AnalyzeAsync_CompletedRun_MapsStableReportContract",
+      "PhotoCuller.Tests.CoreTests.OrbLocalFeatureMatcherTests.IsSameScene_PartialOverlapWithDifferentComposition_ReturnsFalse",
+      "PhotoCuller.Tests.InfrastructureTests.AnalysisResultRepositoryTests.ReplaceAsync_Success_PublishesGroupsAndPhotosAndRetainsTrash",
+      "PhotoCuller.Tests.CoreTests.DuplicateGroupingServiceTests.FromSettings_BasicPreset_UsesCompleteProfile(preset: Strict, expectedGlobal: 8, expectedGlobalDifference: 12, expectedSequence: 20, expectedSequenceDifference: 18, expectedWindow: 30, expectedNumberGap: 1)",
+      "PhotoCuller.Tests.CoreTests.ScoringCacheTests.ScoreRangeAsync_UnchangedInput_ReusesScoreWithoutDecodingAgain",
+      "PhotoCuller.Tests.CoreTests.ApiKeyProtectorTests.Encrypt_DifferentCalls_ProduceDifferentCiphertexts",
+      "PhotoCuller.Tests.InfrastructureTests.SettingsRepositoryTests.SaveAsync_IsAtomic_TempFileCleanedUp",
+      "PhotoCuller.Tests.CoreTests.AestheticScoringTests.ComputeOverall_IgnoresBlendWhenModelScoreMissing",
+      "PhotoCuller.Tests.InfrastructureTests.SettingsRepositoryTests.SaveAndLoad_RoundTrip_PreservesValues",
+      "PhotoCuller.Tests.CoreTests.DuplicateGroupingServiceTests.FromSettings_BasicPreset_UsesCompleteProfile(preset: Normal, expectedGlobal: 12, expectedGlobalDifference: 16, expectedSequence: 30, expectedSequenceDifference: 26, expectedWindow: 120, expectedNumberGap: 1)",
+      "PhotoCuller.Tests.CoreTests.DuplicateGroupingServiceTests.BuildGroups_LoosePreset_GroupsResizeOrCompressedVariant",
+      "PhotoCuller.Tests.CoreTests.ScoringCacheTests.ScoreRangeAsync_ChangedWeights_RecomputesScore",
+      "PhotoCuller.Tests.CoreTests.DuplicateGroupingServiceTests.BuildGroups_AllManuallyRejected_DoesNotRecommendRejectedPhoto",
+      "PhotoCuller.Tests.InfrastructureTests.PhotoScannerTests.ScanAsync_EarlyConsumerDisposal_ReleasesProducerAndAllowsNextScan",
+      "PhotoCuller.Tests.CoreTests.OrbLocalFeatureMatcherTests.IsSameScene_UnrelatedTexturedImages_ReturnsFalse",
+      "PhotoCuller.Tests.InfrastructureTests.PhotoScannerTests.ScanAsync_InvalidatedFile_ReReadsMetadataAndPreservesIdentityAndDecision(change: \"size\")",
+      "PhotoCuller.Tests.InfrastructureTests.FileMoveServiceTests.MoveToTrash_FileNameCollision_AppendsSuffix",
+      "PhotoCuller.Tests.CoreTests.DuplicateGroupingServiceTests.BuildGroups_SequenceSimilarityChain_DoesNotCreateIncoherentGroup",
+      "PhotoCuller.Tests.CoreTests.ScoringCacheTests.ScoreRangeAsync_ModelReplacedAtSamePath_InvalidatesCachedScore",
+      "PhotoCuller.Tests.CoreTests.DuplicateGroupingServiceTests.BuildGroups_NoDuplicates_NoGroups",
+      "PhotoCuller.Tests.InfrastructureTests.ThumbnailServiceTests.GetOrCreateAsync_InvalidImage_DoesNotLeavePartialCacheFile",
+      "PhotoCuller.Tests.CoreTests.DuplicateGroupingServiceTests.BuildGroups_BurstWithinWindow_GroupedAsBurst",
+      "PhotoCuller.Tests.CoreTests.ScoringWeightsTests.ValueEquality_SameValues_AreEqual",
+      "PhotoCuller.Tests.CoreTests.ScoringWeightsTests.AllZero_IsInvalid",
+      "PhotoCuller.Tests.CoreTests.ScoringCacheTests.ScoreRangeAsync_ChangedModelSetting_InvalidatesCachedScore(setting: \"preset\", expected: 59.375)",
+      "PhotoCuller.Tests.CoreTests.SimilarityServiceTests.IsHighlySimilar_NullHash_ReturnsFalse",
+      "PhotoCuller.Tests.InfrastructureTests.PhotoScannerTests.ScanAsync_PendingDeleteSubfolder_ExcludesItsContents",
+      "PhotoCuller.Tests.CoreTests.DuplicateGroupingServiceTests.BuildGroups_LoosePreset_HashCompatibleSameScene_LocalFeaturesKeepPair",
+      "PhotoCuller.Tests.CoreTests.ScoringCacheTests.ScoreRangeAsync_ChangedModelSetting_InvalidatesCachedScore(setting: \"blend\", expected: 46.25)",
+      "PhotoCuller.Tests.InfrastructureTests.ThumbnailServiceTests.GetOrCreateAsync_ConcurrentSameRequest_PublishesOneCompleteJpegWithoutTemporaryFiles",
+      "PhotoCuller.Tests.CoreTests.DuplicateGroupingServiceTests.BuildGroups_AdvancedOverride_AllowsExplicitGlobalThreshold",
+      "PhotoCuller.Tests.CoreTests.SimilarityServiceTests.IsPossiblySimilar_DistanceBeyondPossible_ReturnsFalse",
+      "PhotoCuller.Tests.CoreTests.ScoringCacheTests.ScoreRangeAsync_ChangedFileSignature_RecomputesScore",
+      "PhotoCuller.Tests.CoreTests.AestheticScoringTests.ComputeOverall_BlendsAestheticWithTechnicalScore",
+      "PhotoCuller.Tests.InfrastructureTests.SettingsRepositoryTests.LoadAsync_FileNotExist_ReturnsDefaults",
+      "PhotoCuller.Tests.ApplicationTests.PhotoAnalysisEngineTests.AnalyzeAsync_TwoPhotos_RunsPipelineInRequiredOrderAndReturnsProcessedObjects",
+      "PhotoCuller.Tests.CoreTests.SimilarityServiceTests.IsExactDuplicate_CaseInsensitive",
+      "PhotoCuller.Tests.CoreTests.PerceptualHashServiceTests.HammingDistance_MaxIs64",
+      "PhotoCuller.Tests.CoreTests.DuplicateGroupingServiceTests.BuildGroups_NormalPreset_SimilarHashOutsideSequenceDoesNotFalsePositive",
+      "PhotoCuller.Tests.ApplicationTests.PhotoAnalysisEngineTests.AnalyzeAsync_SizePrefilter_HashesOnlyRepeatedSizesAndRetainsUniquePhotos",
+      "PhotoCuller.Tests.InfrastructureTests.PhotoScannerTests.ScanAsync_InvalidatedFile_ReReadsMetadataAndPreservesIdentityAndDecision(change: \"missing-dimensions\")",
+      "PhotoCuller.Tests.CoreTests.AestheticScoringTests.NormalizeOutput_MapsSupportedRanges(raw: 0.75, preset: \"clip-aesthetic-0-1\", expected: 0.75)",
+      "PhotoCuller.Tests.CoreTests.DuplicateGroupingServiceTests.BuildGroups_LoosePreset_PHashCollisionAcrossSessions_DHashRejectsFalsePositive",
+      "PhotoCuller.Tests.CoreTests.DuplicateGroupingServiceTests.BuildGroups_BurstOutsideWindow_NotGrouped",
+      "PhotoCuller.Tests.CoreTests.DuplicateGroupingServiceTests.BuildGroups_ManualKeepTakesPriority",
+      "PhotoCuller.Tests.CoreTests.DuplicateGroupingServiceTests.BuildGroups_LoosePreset_DoesNotGroupBeyondLooseThreshold",
+      "PhotoCuller.Tests.CoreTests.DuplicateGroupingServiceTests.BuildGroups_ExactDuplicates_GroupedTogether",
+      "PhotoCuller.Tests.InfrastructureTests.PhotoScannerTests.ScanAsync_UnchangedAndNewFiles_ReturnsFullDetachedInventoryWithoutDeletedPhoto",
+      "PhotoCuller.Tests.CoreTests.ScoringWeightsTests.ToString_ContainsAllDimensions",
+      "PhotoCuller.Tests.CoreTests.DuplicateGroupingServiceTests.BuildGroups_LoosePreset_TimeAdjacentButDHashDifferent_DoesNotGroup",
+      "PhotoCuller.Tests.InfrastructureTests.PhotoScannerTests.ScanAsync_InvalidatedFile_ReReadsMetadataAndPreservesIdentityAndDecision(change: \"algorithm-version\")",
+      "PhotoCuller.Tests.CoreTests.AestheticScoringTests.NormalizeOutput_MapsSupportedRanges(raw: 20, preset: \"clip-aesthetic-1-10\", expected: 1)",
+      "PhotoCuller.Tests.CoreTests.DuplicateGroupingServiceTests.BuildGroups_LoosePreset_GlobalHashCollision_LocalFeaturesRejectPair",
+      "PhotoCuller.Tests.CoreTests.SimilarityServiceTests.IsExactDuplicate_SameHash_ReturnsTrue",
+      "PhotoCuller.Tests.CoreTests.OrbLocalFeatureMatcherTests.IsSameScene_UnreadableImage_ReturnsFalseWithoutThrowing",
+      "PhotoCuller.Tests.CoreTests.SimilarityServiceTests.IsPossiblySimilar_DistanceAtPossibleThreshold_ReturnsTrue",
+      "PhotoCuller.Tests.CoreTests.PerceptualHashServiceTests.HammingDistance_KnownPairs(a: 18446744073709551615, b: 0, expected: 64)",
+      "PhotoCuller.Tests.CoreTests.ApiKeyProtectorTests.Encrypt_EmptyString_ThrowsArgumentException",
+      "PhotoCuller.Tests.InfrastructureTests.ThumbnailServiceTests.DeleteAsync_RemovesAllCurrentSizes",
+      "PhotoCuller.Tests.InfrastructureTests.FileMoveServiceTests.MoveManyToTrash_ProgressReported",
+      "PhotoCuller.Tests.CoreTests.OrbLocalFeatureMatcherTests.IsSameScene_FileChangedBetweenScans_RefreshesCachedFeatures",
+      "PhotoCuller.Tests.InfrastructureTests.AnalysisResultRepositoryTests.UpdateRecommendationAsync_ManualDecision_SurvivesNewContextAndSnapshotReplacement",
+      "PhotoCuller.Tests.ApplicationTests.PhotoAnalysisEngineTests.AnalyzeAsync_ThumbnailDisabled_DoesNotRequestThumbnail",
+      "PhotoCuller.Tests.CoreTests.ApiKeyProtectorTests.RoundTrip_VariousInputs(input: \"sk-abc123!@#$%^&*()\")",
+      "PhotoCuller.Tests.InfrastructureTests.PhotoScannerTests.ScanAsync_MetadataFailure_PropagatesFailureAndResetsScanningState",
+      "PhotoCuller.Tests.ApplicationTests.PhotoAnalysisEngineTests.AnalyzeAsync_EmptyScan_ScoresAndGroupsEmptyInputAndReturnsEmptyRun",
+      "PhotoCuller.Tests.CoreTests.DuplicateGroupingServiceTests.BuildGroups_LoosePreset_SubjectChangeSplitsAdjacentPhotosIntoSceneGroups",
+      "PhotoCuller.Tests.InfrastructureTests.ThumbnailServiceTests.GetOrCreateAsync_DifferentSizes_ProducesIndependentCorrectlySizedImages",
+      "PhotoCuller.Tests.CoreTests.OrbLocalFeatureMatcherTests.IsSameScene_SmallViewpointChange_ReturnsTrue",
+      "PhotoCuller.Tests.InfrastructureTests.SettingsRepositoryTests.ConcurrentSaves_DoNotCorruptFile",
+      "PhotoCuller.Tests.CoreTests.DuplicateGroupingServiceTests.BuildGroups_ManualDeleteHighestScore_RecommendsOtherPhotoWithoutOverwritingDecision",
+      "PhotoCuller.Tests.CoreTests.AestheticScoringTests.NormalizeOutput_MapsSupportedRanges(raw: 5.5, preset: \"clip-aesthetic-1-10\", expected: 0.5)",
+      "PhotoCuller.Tests.CoreTests.SimilarityServiceTests.IsHighlySimilar_DistanceAtThreshold_ReturnsTrue",
+      "PhotoCuller.Tests.CoreTests.ScoringCacheTests.ScoreRangeAsync_FailedInference_RetriesRatherThanCachingFallback",
+      "PhotoCuller.Tests.InfrastructureTests.AnalysisResultRepositoryTests.ReplaceAsync_EmptySuccessfulScan_RemovesStaleActivePhotos",
+      "PhotoCuller.Tests.CoreTests.ScoringWeightsTests.Custom_InvalidWhenNotSumsTo100",
+      "PhotoCuller.Tests.CoreTests.OrbLocalFeatureMatcherTests.IsSameScene_CancelledBeforeExtraction_ThrowsCancellation",
+      "PhotoCuller.Tests.CoreTests.DuplicateGroupingServiceTests.BuildGroups_RecommendedPhotoIsHighestScore",
+      "PhotoCuller.Tests.InfrastructureTests.AnalysisResultRepositoryTests.ReplaceAsync_PreCancelled_DoesNotChangePreviousSnapshot",
+      "PhotoCuller.Tests.ApplicationTests.PhotoAnalysisEngineTests.AnalyzeAsync_ActiveCancellationToken_PropagatesSameTokenToEveryStage",
+      "PhotoCuller.Tests.InfrastructureTests.PhotoScannerTests.ScanAsync_SupportedAndUnsupportedFiles_YieldsOnlySupportedFile",
+      "PhotoCuller.Tests.InfrastructureTests.SettingsRepositoryTests.SaveAsync_MultipleTimes_LastValueWins",
+      "PhotoCuller.Tests.CoreTests.SimilarityServiceTests.IsHighlySimilar_DistanceBeyondThreshold_ReturnsFalse",
+      "PhotoCuller.Tests.CoreTests.PerceptualHashServiceTests.HammingDistance_KnownPairs(a: 0, b: 0, expected: 0)",
+      "PhotoCuller.Tests.CoreTests.PerceptualHashServiceTests.HammingDistance_IsSymmetric",
+      "PhotoCuller.Tests.ApplicationTests.PhotoAnalysisEngineTests.AnalyzeAsync_PreCancelledToken_StopsBeforeStartingPipeline",
+      "PhotoCuller.Tests.CoreTests.PerceptualHashServiceTests.HammingDistance_MatchesPopCount",
+      "PhotoCuller.Tests.CoreTests.DuplicateGroupingServiceTests.BuildGroups_LoosePreset_HashCompatibleSceneChange_LocalFeaturesRejectPair",
+      "PhotoCuller.Tests.CoreTests.PerceptualHashServiceTests.HammingDistance_KnownPairs(a: 15, b: 0, expected: 4)",
+      "PhotoCuller.Tests.CoreTests.ApiKeyProtectorTests.Encrypt_ProducesBase64String",
+      "PhotoCuller.Tests.ApplicationTests.IncrementalAnalysisTests.AnalyzeAndSave_RepeatedScans_ReusesWorkPreservesDecisionAndFindsNewDuplicate",
+      "PhotoCuller.Tests.InfrastructureTests.PhotoScannerTests.ScanAsync_InvalidatedFile_ReReadsMetadataAndPreservesIdentityAndDecision(change: \"older-timestamp\")",
+      "PhotoCuller.Tests.CoreTests.ApiKeyProtectorTests.RoundTrip_VariousInputs(input: \"short\")",
+      "PhotoCuller.Tests.ApplicationTests.PhotoAnalysisEngineTests.AnalyzeAsync_CachedHashes_ReusesHashesAndStillGroupsFullInventory",
+      "PhotoCuller.Tests.InfrastructureTests.ThumbnailServiceTests.GetOrCreateAsync_SizeChangesWithSameTimestamp_InvalidatesCachedPixels",
+      "PhotoCuller.Tests.CoreTests.ApiKeyProtectorTests.Decrypt_RoundTrip_ReturnsOriginal",
+      "PhotoCuller.Tests.InfrastructureTests.FileMoveServiceTests.MoveToTrash_FileNotFound_LogsFailure",
+      "PhotoCuller.Tests.InfrastructureTests.FileMoveServiceTests.MoveManyToTrash_AllSucceed_ReturnsAllLogs",
+      "PhotoCuller.Tests.CoreTests.DuplicateGroupingServiceTests.BuildGroups_NormalPreset_UsesBkTreeInsteadOfPairwiseScan",
+      "PhotoCuller.Tests.CoreTests.AestheticScoringTests.NormalizeOutput_MapsSupportedRanges(raw: 0, preset: \"clip-aesthetic-minus1-1\", expected: 0.5)",
+      "PhotoCuller.Tests.CoreTests.ScoringCacheTests.ScoreRangeAsync_FailedDimension_RetriesAndRecoversScore",
+      "PhotoCuller.Tests.CoreTests.PerceptualHashServiceTests.HammingDistance_KnownPairs(a: 1, b: 0, expected: 1)",
+      "PhotoCuller.Tests.ApplicationTests.PhotoAnalysisEngineTests.AnalyzeAsync_CorruptedPhoto_PreservesErrorInRunAndReport",
+      "PhotoCuller.Tests.InfrastructureTests.AnalysisResultRepositoryTests.ReplaceAsync_CancellationAfterDelete_RollsBackPreviousSnapshot",
+      "PhotoCuller.Tests.CoreTests.ApiKeyProtectorTests.Decrypt_TamperedCiphertext_Throws",
+      "PhotoCuller.Tests.CoreTests.SimilarityServiceTests.IsExactDuplicate_NullHash_ReturnsFalse",
+      "PhotoCuller.Tests.CoreTests.SimilarityServiceTests.IsExactDuplicate_DifferentHash_ReturnsFalse",
+      "PhotoCuller.Tests.CoreTests.ScoringWeightsTests.Custom_ValidWhenSumsTo100",
+      "PhotoCuller.Tests.CoreTests.ApiKeyProtectorTests.RoundTrip_VariousInputs(input: \"a very long api key with spaces and unicode: 你好世界\")"
+    ]
+  },
+  "existingTestsInitialFailure": {
+    "passed": 116,
+    "failed": 1,
+    "test": "MoveManyToTrash_ProgressReported",
+    "isolatedRetryPassed": true,
+    "note": "Existing Progress callback test waits a fixed 50ms; source unchanged."
+  },
+  "solutionTestDiscoveryExitCode": 0,
+  "externalUiAutomation": {
+    "tool": "winapp ui 0.6.1",
+    "passed": 14,
+    "failed": 0,
+    "tests": [
+      {
+        "status": "PASS",
+        "name": "Default route is whole head"
+      },
+      {
+        "status": "PASS",
+        "name": "Empty selection is rejected"
+      },
+      {
+        "status": "PASS",
+        "name": "Load native base JPEG through system picker"
+      },
+      {
+        "status": "PASS",
+        "name": "Load native source JPEG through system picker"
+      },
+      {
+        "status": "PASS",
+        "name": "Select two complete heads with no landmarks"
+      },
+      {
+        "status": "PASS",
+        "name": "Compose whole head without five points"
+      },
+      {
+        "status": "PASS",
+        "name": "100 percent result zoom"
+      },
+      {
+        "status": "PASS",
+        "name": "Set safe PNG export filename"
+      },
+      {
+        "status": "PASS",
+        "name": "Select export folder and save native PNG"
+      },
+      {
+        "name": "Before view displays base photo",
+        "status": "PASS"
+      },
+      {
+        "name": "Mask view and composite view switch",
+        "status": "PASS"
+      },
+      {
+        "name": "Native JPEG export",
+        "status": "PASS"
+      },
+      {
+        "name": "Explicit debug save includes intermediate images and metrics",
+        "status": "PASS"
+      },
+      {
+        "name": "Reset disables export; compose restores result",
+        "status": "PASS"
+      }
+    ],
+    "testOnlyAppEndpoints": false,
+    "pngExportSize": [
+      4000,
+      2665
+    ],
+    "jpegExportSize": [
+      4000,
+      2665
+    ],
+    "duplicateExportRejectedAndHashUnchanged": true
+  },
+  "realBurstCases": [
+    {
+      "case": "case-head-small",
+      "base": "IMG_8681.jpeg",
+      "source": "IMG_8682.jpeg",
+      "baseSize": [
+        4000,
+        2665
+      ],
+      "sourceSize": [
+        4000,
+        2664
+      ],
+      "elapsedMs": 48.8438,
+      "scale": 1,
+      "rotationDegrees": 0,
+      "outsideMaskChangedChannels": 0,
+      "visualAcceptance": "pending_user_review"
+    },
+    {
+      "case": "case-head-smile",
+      "base": "IMG_8681.jpeg",
+      "source": "IMG_8693.jpeg",
+      "baseSize": [
+        4000,
+        2665
+      ],
+      "sourceSize": [
+        4000,
+        2669
+      ],
+      "elapsedMs": 44.6923,
+      "scale": 0.9425287356321839,
+      "rotationDegrees": 0,
+      "outsideMaskChangedChannels": 0,
+      "visualAcceptance": "pending_user_review"
+    },
+    {
+      "case": "case-head-smile-turn",
+      "base": "IMG_8681.jpeg",
+      "source": "IMG_8688.jpeg",
+      "baseSize": [
+        4000,
+        2665
+      ],
+      "sourceSize": [
+        4000,
+        2667
+      ],
+      "elapsedMs": 46.3774,
+      "scale": 0.9647058823529412,
+      "rotationDegrees": -4,
+      "outsideMaskChangedChannels": 0,
+      "visualAcceptance": "pending_user_review"
+    }
+  ],
+  "originalSampleFiles": 13,
+  "originalSampleHashMismatches": 0,
+  "native24MPRealPhotoValidation": "not_done_samples_are_10.7MP",
+  "synthetic24MPDimensionAndPixelTests": "passed_not_visual_quality_evidence",
+  "legacyFaceVisualAcceptance": "failed_user_feedback",
+  "wholeHeadVisualAcceptance": "FAILED: user explicitly rejected the BiSeNet WinUI composite on 2026-11-07; functional tests are not visual acceptance.",
+  "pushOrMergePerformedDuringInitialValidation": false,
+  "subsequentPublicationRequest": {
+    "requestedByUser": true,
+    "targetRemote": "origin",
+    "targetBranch": "experiment/group-take-poc",
+    "mergeIntoMainRequested": false,
+    "publicationStatusAuthority": "Git commit log and remote branch"
+  },
+  "privateImagesIncludedInGit": false,
+  "previousPocTestCount": 28,
+  "clothingMaskFix": {
+    "userFeedback": "Unprotected ellipse imported clothing inside the mask. Previous outside-mask invariance was insufficient.",
+    "build": {
+      "project": "src/GroupTake.Poc.WinUI/GroupTake.Poc.WinUI.csproj",
+      "tool": "VS MSBuild",
+      "platform": "x64",
+      "exitCode": 0
+    },
+    "garmentChecks": [
+      {
+        "label": "left_collar",
+        "bounds": [
+          1885,
+          1385,
+          1897,
+          1400
+        ],
+        "old_changed": true,
+        "corrected_equals_base": true,
+        "old_max_channel_difference": 42,
+        "new_max_channel_difference": 0
+      },
+      {
+        "label": "right_collar",
+        "bounds": [
+          1992,
+          1370,
+          2004,
+          1394
+        ],
+        "old_changed": true,
+        "corrected_equals_base": true,
+        "old_max_channel_difference": 171,
+        "new_max_channel_difference": 0
+      },
+      {
+        "label": "lower_neck_and_collar",
+        "bounds": [
+          1914,
+          1414,
+          1969,
+          1418
+        ],
+        "old_changed": true,
+        "corrected_equals_base": true,
+        "old_max_channel_difference": 30,
+        "new_max_channel_difference": 0
+      }
+    ],
+    "externalBrushTests": [
+      {
+        "name": "Paint target garment protection and invalidate prior export",
+        "status": "PASS"
+      },
+      {
+        "name": "Paint source garment protection in native source coordinates",
+        "status": "PASS"
+      },
+      {
+        "name": "Compose with both source and target protection",
+        "status": "PASS"
+      },
+      {
+        "name": "Debug output persists real protection strokes",
+        "status": "PASS"
+      },
+      {
+        "name": "Export recomputes protected native result",
+        "status": "PASS"
+      }
+    ],
+    "externalBasicTests": [
+      {
+        "name": "Default route is whole head",
+        "status": "PASS"
+      },
+      {
+        "name": "Empty selection is rejected",
+        "status": "PASS"
+      },
+      {
+        "name": "Load native base JPEG through system picker",
+        "status": "PASS"
+      },
+      {
+        "name": "Load native source JPEG through system picker",
+        "status": "PASS"
+      },
+      {
+        "name": "Select two complete heads with no landmarks",
+        "status": "PASS"
+      },
+      {
+        "name": "Compose whole head without five points",
+        "status": "PASS"
+      },
+      {
+        "name": "100 percent result zoom",
+        "status": "PASS"
+      },
+      {
+        "name": "Set safe PNG export filename",
+        "status": "PASS"
+      },
+      {
+        "name": "Select export folder and save native PNG",
+        "status": "PASS"
+      }
+    ],
+    "automaticSemanticSegmentation": false,
+    "visualAcceptance": "pending_user_review_of_protected_result",
+    "nativeUiStrokeCoordinateChecks": "passed_within_2_original_pixels_after_resetting_100_percent_for_each_stroke",
+    "finalUiExportSize": [
+      4000,
+      2665
+    ],
+    "finalUiExportMatchesProtectedDebugPixels": true
+  },
+  "bisenetOfflineEvaluation": {
+    "scope": "4 real photos, 3 manually corresponding people, 2 square crop sizes, 2 official models; 48 predictions",
+    "real_inference_count": 48,
+    "models": [
+      {
+        "name": "resnet18",
+        "sha256": "0d9bd318e46987c3bdbfacae9e2c0f461cae1c6ac6ea6d43bbe541a91727e33f"
+      },
+      {
+        "name": "resnet34",
+        "sha256": "5b805bba7b5660ab7070b5a381dcf75e5b3e04199f1e9387232a77a00095102e"
+      }
+    ],
+    "measurements": [
+      {
+        "model": "resnet18",
+        "median_inference_and_postprocess_ms": 196.47850000183098,
+        "minimum_ms": 174.03649998595938,
+        "maximum_ms": 219.54489999916404,
+        "crop_agreement": [
+          {
+            "id": "brown-jacket-8681",
+            "tight_vs_context_head_iou": 0.9665481577246283
+          },
+          {
+            "id": "brown-jacket-8682",
+            "tight_vs_context_head_iou": 0.9647645519947678
+          },
+          {
+            "id": "brown-jacket-8688",
+            "tight_vs_context_head_iou": 0.9015717232060309
+          },
+          {
+            "id": "brown-jacket-8693",
+            "tight_vs_context_head_iou": 0.95718788945092
+          },
+          {
+            "id": "glasses-8681",
+            "tight_vs_context_head_iou": 0.8985217738713543
+          },
+          {
+            "id": "glasses-8682",
+            "tight_vs_context_head_iou": 0.6940047046856126
+          },
+          {
+            "id": "glasses-8688",
+            "tight_vs_context_head_iou": 0.8259752847104435
+          },
+          {
+            "id": "glasses-8693",
+            "tight_vs_context_head_iou": 0.8598679915862769
+          },
+          {
+            "id": "long-hair-8681",
+            "tight_vs_context_head_iou": 0.8856537060263991
+          },
+          {
+            "id": "long-hair-8682",
+            "tight_vs_context_head_iou": 0.8758384259949322
+          },
+          {
+            "id": "long-hair-8688",
+            "tight_vs_context_head_iou": 0.8737553342816501
+          },
+          {
+            "id": "long-hair-8693",
+            "tight_vs_context_head_iou": 0.8356861189537298
+          }
+        ],
+        "median_crop_agreement": 0.8807460660106656,
+        "minimum_crop_agreement": 0.6940047046856126,
+        "landmark_patches": 120,
+        "landmark_patches_fully_retained": 120,
+        "manual_exclusion_checks": [
+          {
+            "case": "brown-jacket-8681",
+            "context": "tight",
+            "regions": [
+              {
+                "label": "left_collar",
+                "covered": true,
+                "fully_covered": true,
+                "excluded_from_head_fraction": 1.0,
+                "classes": {
+                  "background": 40,
+                  "cloth": 140
+                }
+              },
+              {
+                "label": "right_collar",
+                "covered": true,
+                "fully_covered": true,
+                "excluded_from_head_fraction": 1.0,
+                "classes": {
+                  "background": 226,
+                  "cloth": 62
+                }
+              },
+              {
+                "label": "lower_neck_and_collar",
+                "covered": true,
+                "fully_covered": true,
+                "excluded_from_head_fraction": 1.0,
+                "classes": {
+                  "neck": 220
+                }
+              }
+            ]
+          },
+          {
+            "case": "brown-jacket-8681",
+            "context": "context",
+            "regions": [
+              {
+                "label": "left_collar",
+                "covered": true,
+                "fully_covered": true,
+                "excluded_from_head_fraction": 1.0,
+                "classes": {
+                  "background": 40,
+                  "cloth": 140
+                }
+              },
+              {
+                "label": "right_collar",
+                "covered": true,
+                "fully_covered": true,
+                "excluded_from_head_fraction": 1.0,
+                "classes": {
+                  "background": 229,
+                  "cloth": 59
+                }
+              },
+              {
+                "label": "lower_neck_and_collar",
+                "covered": true,
+                "fully_covered": true,
+                "excluded_from_head_fraction": 1.0,
+                "classes": {
+                  "neck": 220
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "model": "resnet34",
+        "median_inference_and_postprocess_ms": 279.43880000384524,
+        "minimum_ms": 222.48300001956522,
+        "maximum_ms": 303.9613000000827,
+        "crop_agreement": [
+          {
+            "id": "brown-jacket-8681",
+            "tight_vs_context_head_iou": 0.9725244183276424
+          },
+          {
+            "id": "brown-jacket-8682",
+            "tight_vs_context_head_iou": 0.9863833975883849
+          },
+          {
+            "id": "brown-jacket-8688",
+            "tight_vs_context_head_iou": 0.9505172883201742
+          },
+          {
+            "id": "brown-jacket-8693",
+            "tight_vs_context_head_iou": 0.9215252832274109
+          },
+          {
+            "id": "glasses-8681",
+            "tight_vs_context_head_iou": 0.9360768402749027
+          },
+          {
+            "id": "glasses-8682",
+            "tight_vs_context_head_iou": 0.7246214614878209
+          },
+          {
+            "id": "glasses-8688",
+            "tight_vs_context_head_iou": 0.9085013283325519
+          },
+          {
+            "id": "glasses-8693",
+            "tight_vs_context_head_iou": 0.8847262247838616
+          },
+          {
+            "id": "long-hair-8681",
+            "tight_vs_context_head_iou": 0.8072814475692174
+          },
+          {
+            "id": "long-hair-8682",
+            "tight_vs_context_head_iou": 0.8575765536970547
+          },
+          {
+            "id": "long-hair-8688",
+            "tight_vs_context_head_iou": 0.8633263115658542
+          },
+          {
+            "id": "long-hair-8693",
+            "tight_vs_context_head_iou": 0.8594299662574485
+          }
+        ],
+        "median_crop_agreement": 0.8966137765582067,
+        "minimum_crop_agreement": 0.7246214614878209,
+        "landmark_patches": 120,
+        "landmark_patches_fully_retained": 120,
+        "manual_exclusion_checks": [
+          {
+            "case": "brown-jacket-8681",
+            "context": "tight",
+            "regions": [
+              {
+                "label": "left_collar",
+                "covered": true,
+                "fully_covered": true,
+                "excluded_from_head_fraction": 1.0,
+                "classes": {
+                  "background": 42,
+                  "cloth": 138
+                }
+              },
+              {
+                "label": "right_collar",
+                "covered": true,
+                "fully_covered": true,
+                "excluded_from_head_fraction": 1.0,
+                "classes": {
+                  "background": 228,
+                  "cloth": 60
+                }
+              },
+              {
+                "label": "lower_neck_and_collar",
+                "covered": true,
+                "fully_covered": true,
+                "excluded_from_head_fraction": 1.0,
+                "classes": {
+                  "neck": 220
+                }
+              }
+            ]
+          },
+          {
+            "case": "brown-jacket-8681",
+            "context": "context",
+            "regions": [
+              {
+                "label": "left_collar",
+                "covered": true,
+                "fully_covered": true,
+                "excluded_from_head_fraction": 1.0,
+                "classes": {
+                  "background": 42,
+                  "cloth": 138
+                }
+              },
+              {
+                "label": "right_collar",
+                "covered": true,
+                "fully_covered": true,
+                "excluded_from_head_fraction": 1.0,
+                "classes": {
+                  "background": 228,
+                  "cloth": 60
+                }
+              },
+              {
+                "label": "lower_neck_and_collar",
+                "covered": true,
+                "fully_covered": true,
+                "excluded_from_head_fraction": 1.0,
+                "classes": {
+                  "neck": 220
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "source_files_changed": [],
+    "visual_review": {
+      "promising": [
+        "Both models exclude the three manually selected collar/neck regions in IMG_8681.",
+        "Visible face features are preserved in the binary head cutouts."
+      ],
+      "failures": [
+        "Glasses subject IMG_8688: rear clothing is predicted as hat, especially ResNet18.",
+        "Brown-jacket subject IMG_8688/8693: rear dark clothing can merge into predicted hair.",
+        "Long hair can run beyond the crop and retain shoulder-overlapping strands."
+      ],
+      "integration_decision": "Do not wire raw masks into WinUI automatic compositing yet; evaluate targeted cleanup and boundary protection first."
+    },
+    "integrated_into_WinUI": false,
+    "generated_face_pixels": false,
+    "report": "experiments/GroupTake/BiSeNet-Evaluation.md"
+  },
+  "lastUpdated": "2026-11-07",
+  "bisenetWinUiIntegration": {
+    "date": "2026-11-07",
+    "integrated": true,
+    "runtime": "C# Microsoft.ML.OnnxRuntime 1.27.0 CPU",
+    "defaultModel": "ResNet34",
+    "modelCache": "%USERPROFILE%/.cache/GroupTake.Poc/models/bisenet",
+    "selection": "manual whole-head boxes",
+    "classesIncluded": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      17
+    ],
+    "cleanup": "Constrain to selected head bounds; no connected-component cleanup or hair matting",
+    "maskEditing": [
+      "erase",
+      "restore",
+      "undo",
+      "redo",
+      "reset"
+    ],
+    "coordinates": "EXIF-oriented original pixels; model patches and ordered strokes retained for HD recomposition",
+    "solutionRebuild": {
+      "tool": "VS18 MSBuild",
+      "configuration": "Debug",
+      "platform": "x64",
+      "exitCode": 0
+    },
+    "pocTests": {
+      "passed": 38,
+      "failed": 0
+    },
+    "coreTests": {
+      "passed": 117,
+      "failed": 0
+    },
+    "externalUiChecks": [
+      {
+        "status": "PASS",
+        "name": "AutoHeadMode_DefaultResNet34AndRejectsEmptySelection"
+      },
+      {
+        "status": "PASS",
+        "name": "ImportTwoRealBurstPhotosThroughNativePickers"
+      },
+      {
+        "status": "PASS",
+        "name": "SelectFullHeadsAndRejectComposeBeforeSegmentation"
+      },
+      {
+        "status": "PASS",
+        "name": "SegmentBothHeadsWithCachedNativeOnnxModel"
+      },
+      {
+        "status": "PASS",
+        "name": "InspectGreenMasksAt100Percent"
+      },
+      {
+        "status": "PASS",
+        "name": "ComposeAndSaveRawSemanticCase"
+      },
+      {
+        "status": "PASS",
+        "name": "EraseAtOriginalHeadCenterInvalidatesExport"
+      },
+      {
+        "status": "PASS",
+        "name": "UndoRestoresHistoryAndRedoReappliesErase"
+      },
+      {
+        "status": "PASS",
+        "name": "RestoreBrushIsRecordedInOrder"
+      },
+      {
+        "status": "PASS",
+        "name": "ResetRepairsRetainsAutomaticBaselineAndExportsNativePng"
+      }
+    ],
+    "uiAutomationEmbedded": false,
+    "twoHeadInferenceMs": 560,
+    "timingScope": "One UI run, excludes model loading, image decoding, preview and export",
+    "nativeOutputSize": [
+      4000,
+      2665
+    ],
+    "pixelVerification": {
+      "native_size": [
+        4000,
+        2665
+      ],
+      "export_matches_debug_pixels": true,
+      "outside_mask_changed_channels": 0,
+      "collar_rois": {
+        "left_collar": {
+          "max_channel_difference": 0,
+          "changed_channels": 0
+        },
+        "right_collar": {
+          "max_channel_difference": 0,
+          "changed_channels": 0
+        },
+        "lower_neck_collar": {
+          "max_channel_difference": 0,
+          "changed_channels": 0
+        }
+      },
+      "source_files_unchanged": 13,
+      "undo_matches_baseline": true,
+      "redo_matches_erased": true,
+      "restore_matches_baseline": true,
+      "reset_matches_baseline": true,
+      "brush_removed_native_pixels": 113
+    },
+    "visualAcceptance": "FAILED: user explicitly rejected the BiSeNet WinUI composite on 2026-11-07; functional tests are not visual acceptance.",
+    "repairCostMeasurement": "Not measured; center erase/restore strokes validate the tools and are not a quality repair-cost trial.",
+    "privateEvidence": "%USERPROFILE%/Pictures/GroupTake-Poc-Results/20261107/bisenet-winui/ui-pass6",
+    "requirementEvidence": {
+      "RGB_preprocessing": "PrepareInput_UsesRgbImageNetNormalizationInChwOrder",
+      "semantic_classes": "DecodeHead_ExcludesBackgroundNeckClothesAndHat_ContainsFacialPartsAndHair",
+      "native_masks": "Materialize_PlacesNativeCropAndRejectsMismatchedDimensionsOrNonBinaryData",
+      "ordered_edits": "Edits_EraseRestoreInOrder_ClipRestoreToSelectedHead",
+      "history": "History_UndoRedoResetAndNewBranch_KeepIndependentSnapshots",
+      "semantic_composition": "Compose_SemanticMasksExcludeInteriorGarment_AndWarpSourceEditsAtNativeSize",
+      "export": "SemanticExport_JsonRoundtripRetainsEditsAndNativePixels_WithRawEditedEvidence"
+    },
+    "alignmentFollowup": {
+      "defaultAlgorithmChanged": false,
+      "detectedEyeDistanceSourceOverTarget": 1.2068944617746906,
+      "boxAlignedEyeErrorsPx": [
+        [
+          -4.0529,
+          -8.2315
+        ],
+        [
+          3.4239,
+          -9.0873
+        ]
+      ],
+      "eyeOnlyTrial": {
+        "scale": 0.8285728633881869,
+        "rotationDegrees": 1.19808901948371,
+        "targetHeadCandidateFractionOutsideFinalMask": 0.27242551813471505
+      },
+      "eyesNoseTrial": {
+        "scale": 0.8582865991982146,
+        "rotationDegrees": 2.4885904934739442,
+        "targetHeadCandidateFractionOutsideFinalMask": 0.21802137305699482
+      },
+      "conclusion": "Not visually accepted. Scale correction leaves old target hair/ear/chin support; inward feathering mixes contours. Segmentation and brushes alone do not solve pose/alignment/original-head removal.",
+      "landmarkGroundTruth": false
+    }
+  },
+  "jawTransitionRepairTrial": {
+    "date": "2026-11-07",
+    "status": "Improved offline candidate, visual acceptance pending; existing default remains rejected",
+    "WinUiDefaultChanged": false,
+    "script": "experiments/GroupTake/jaw_transition_evaluate.py",
+    "manualScale": 0.94,
+    "rotationFromEyeReferencesDegrees": 1.19808901948371,
+    "headFeatherPixels": 2,
+    "jawBandBelowEyesPixels": 45,
+    "neckBlend": "Normal Poisson only on permitted lower-jaw/neck skin; face uses alpha",
+    "rejectedMethods": [
+      "Outer-ring mesh: distorted head and ears",
+      "Whole-head background inpaint: block artifacts",
+      "Raw neck alpha: dark neck patch"
+    ],
+    "verification": {
+      "size": [
+        4000,
+        2665
+      ],
+      "outsideSupportChangedChannels": 0,
+      "predictedClothingChangedChannels": 0,
+      "roiChecks": {
+        "left_collar": {
+          "max_channel_difference": 0,
+          "changed_channels": 0
+        },
+        "right_collar": {
+          "max_channel_difference": 0,
+          "changed_channels": 0
+        },
+        "lower_neck_collar": {
+          "max_channel_difference": 33,
+          "changed_channels": 585
+        }
+      },
+      "originalPhotosUnchanged": 13,
+      "transitionMaskNativeSize": [
+        4000,
+        2665
+      ],
+      "pocTestsPassed": 40,
+      "visualAcceptance": "Improved candidate only; not accepted by user and not a WinUI default",
+      "sourceFeaturePatchesPreserved": 5,
+      "lowerNeckRoiPredictedClasses": {
+        "14": 220
+      }
+    },
+    "pocTests": {
+      "passed": 40,
+      "failed": 0,
+      "skipped": 0,
+      "trxParsed": true
+    },
+    "focusedTest": "Poisson_KeepsCallerMaskImmutableAndPreservesOriginalOutsideSupport",
+    "interopObservation": "Python OpenCV4.13 modifies clone mask: pass copy. Existing C# OpenCV4.10 passed integrity cases before any production change.",
+    "privateEvidence": "%USERPROFILE%/Pictures/GroupTake-Poc-Results/20261107/bisenet-winui/ui-pass6/jaw-repro-03",
+    "limitations": [
+      "Manual per-pair scale and band tuning",
+      "Ear/hair boundary mixing remains",
+      "No pose correction",
+      "No C# parity or WinUI integration for the new trial"
+    ]
+  },
+  "longHairUserUiFeedback": {
+    "date": "2026-11-07",
+    "frames": [
+      "IMG_8681.jpeg",
+      "IMG_8693.jpeg"
+    ],
+    "subject": "Front-row long-haired person selected manually by user",
+    "feedback": "可以说是没啥用",
+    "acceptance": "FAILED: practical improvement does not justify current interaction cost",
+    "runtimeRoute": "Existing WinUI head-box similarity + semantic mask intersection + Alpha feather",
+    "offlineJawTrialIntegrated": false,
+    "conclusion": "Runnable engineering pipeline; practical expression replacement remains unproven."
+  }
+}

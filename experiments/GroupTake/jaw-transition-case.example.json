@@ -1,0 +1,11 @@
+{
+  "BasePath": "C:/Private/base.jpg",
+  "SourcePath": "C:/Private/source.jpg",
+  "BaseHead": [200, 100, 140, 180],
+  "SourceHead": [350, 120, 150, 190],
+  "BaseEyes": [[240, 170], [285, 170]],
+  "SourceEyes": [[390, 195], [439, 194]],
+  "Scale": 0.94,
+  "FeatherRadius": 2,
+  "JawBandBelowEyesPixels": 45
+}

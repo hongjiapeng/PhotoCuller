@@ -1,0 +1,3 @@
+# The repository's models/ rule excludes model weights. These are C# data contracts.
+!Models/
+!Models/*.cs

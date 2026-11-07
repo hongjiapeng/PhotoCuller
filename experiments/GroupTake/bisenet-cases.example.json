@@ -1,0 +1,13 @@
+[
+  {
+    "id": "person-a-frame-01",
+    "group": "person-a",
+    "frame": 1,
+    "photo": "C:/Photos/group-photo-01.jpg",
+    "face_bounds": [1895, 1298, 86, 111],
+    "landmarks": [[1919.6, 1340.7], [1955.7, 1341.0], [1936.7, 1362.2], [1921.3, 1379.6], [1951.1, 1378.5]],
+    "check_regions": {
+      "manually_verified_collar": [1885, 1385, 1897, 1400]
+    }
+  }
+]

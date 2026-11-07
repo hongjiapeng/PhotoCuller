@@ -1,0 +1,14 @@
+{
+  "Mode": "Head",
+  "BasePath": "C:/Photos/base.jpg",
+  "SourcePath": "C:/Photos/source.jpg",
+  "BaseFace": { "Bounds": [1880, 1254, 126, 164] },
+  "SourceFace": { "Bounds": [1897, 1238, 128, 164] },
+  "HeadOptions": {
+    "FeatherRadius": 8,
+    "RotationDegrees": 0,
+    "ScaleAdjustment": 1,
+    "OffsetX": 0,
+    "OffsetY": 0
+  }
+}

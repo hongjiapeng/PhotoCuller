@@ -1,0 +1,96 @@
+<Window x:Class="GroupTake.Poc.WinUI.MainWindow"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+ xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ xmlns:views="using:GroupTake.Poc.WinUI.Views">
+ <Grid Padding="20" RowSpacing="12" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+  <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+  <Grid ColumnSpacing="16">
+   <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+   <StackPanel><TextBlock Text="GroupTake" Style="{ThemeResource TitleTextBlockStyle}"/>
+    <TextBlock Text="整头替换 · 自动分割 + 手动修边" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/></StackPanel>
+   <CommandBar x:Name="Commands" Grid.Column="1" DefaultLabelPosition="Right" IsOpen="False">
+    <AppBarButton Label="导入底图 A" Icon="OpenFile" Click="LoadBase_Click"/>
+    <AppBarButton Label="导入来源 B" Icon="OpenFile" Click="LoadSource_Click"/>
+    <AppBarSeparator/>
+    <AppBarButton x:Name="SegmentButton" Label="自动分割" Icon="OutlineStar" Click="Segment_Click"/>
+    <AppBarButton x:Name="ComposeButton" Label="合成" Icon="Edit" Click="Compose_Click"/>
+    <AppBarButton x:Name="ExportButton" Label="高清导出" Icon="Save" IsEnabled="False" Click="Export_Click"/>
+    <AppBarButton x:Name="DebugButton" Label="保存调试" Icon="Folder" IsEnabled="False" Click="Debug_Click"/>
+   </CommandBar>
+  </Grid>
+  <TextBlock x:Name="Instructions" Grid.Row="1" TextWrapping="Wrap" Text="① 框选同一人的完整头部 → ② 自动分割 → ③ 100% 检查绿色蒙版，用擦除/补回修边 → ④ 合成并对比底图。默认排除帽子、脖子和衣服；误分仍需修正。右键拖动平移。"/>
+  <Grid x:Name="PhotoArea" Grid.Row="2" ColumnSpacing="12">
+   <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+   <views:PhotoPane x:Name="BasePane" AllowDrop="True" DragOver="Photo_DragOver" Drop="Base_Drop"/>
+   <views:PhotoPane x:Name="SourcePane" Grid.Column="1" AllowDrop="True" DragOver="Photo_DragOver" Drop="Source_Drop"/>
+   <views:PhotoPane x:Name="ResultPane" Grid.Column="2"/>
+  </Grid>
+  <ScrollViewer x:Name="SettingsScroll" Grid.Row="3" HorizontalScrollBarVisibility="Auto" HorizontalScrollMode="Enabled" VerticalScrollMode="Disabled" VerticalScrollBarVisibility="Disabled">
+   <StackPanel x:Name="SettingsPanel" Spacing="10">
+    <StackPanel x:Name="SegmentationSettings" Orientation="Horizontal" Spacing="12">
+     <CheckBox x:Name="AutoMaskToggle" Content="使用 BiSeNet 蒙版" IsChecked="True" Click="AutoMask_Click"/>
+     <ComboBox x:Name="SegmentationModel" SelectedIndex="0" Width="155" SelectionChanged="SegmentationModel_Changed" AutomationProperties.Name="BiSeNet 模型">
+      <ComboBoxItem Content="ResNet34"/><ComboBoxItem Content="ResNet18"/>
+     </ComboBox>
+     <Button Content="选择分割模型" Click="SegmentationModelFile_Click" AutomationProperties.AutomationId="ChooseSegmentationModel"/>
+     <CheckBox x:Name="MaskOverlayToggle" Content="显示绿色蒙版" IsChecked="True" Click="MaskOverlay_Click"/>
+     <NumberBox x:Name="BrushSize" Header="笔刷半径 / 原图 px" Value="6" Minimum="1" Maximum="100" Width="175" ValueChanged="BrushSize_Changed"/>
+     <TextBlock Text="擦除保留底图；补回仍受另一张图的蒙版约束。取消 BiSeNet 可对照旧椭圆。" TextWrapping="Wrap" MaxWidth="430" VerticalAlignment="Center"/>
+    </StackPanel>
+    <StackPanel Orientation="Horizontal" Spacing="16">
+     <ComboBox x:Name="ReplacementMode" Header="实验路线" Width="210" SelectedIndex="0" SelectionChanged="Replacement_Changed">
+      <ComboBoxItem Content="整头替换 · 第一阶段"/><ComboBoxItem Content="局部人脸 · 旧实验"/>
+     </ComboBox>
+     <NumberBox x:Name="HeadFeather" Header="边缘羽化 / 原图像素" Value="8" Minimum="0" Maximum="256" Width="180" SpinButtonPlacementMode="Compact" ValueChanged="Feather_Changed"/>
+     <TextBox x:Name="ExportName" Header="导出文件名（.png / .jpg）" Width="260" Text="GroupTake-result.png"/>
+     <Expander x:Name="HeadAdjustments" Header="整体位置微调" VerticalAlignment="Bottom">
+      <StackPanel Orientation="Horizontal" Spacing="8">
+       <NumberBox x:Name="HeadX" Header="横移 px" Value="0" Minimum="-500" Maximum="500" Width="110" ValueChanged="Feather_Changed"/>
+       <NumberBox x:Name="HeadY" Header="纵移 px" Value="0" Minimum="-500" Maximum="500" Width="110" ValueChanged="Feather_Changed"/>
+       <NumberBox x:Name="HeadScale" Header="等比缩放" Value="1" Minimum="0.75" Maximum="1.25" SmallChange="0.01" Width="110" ValueChanged="Feather_Changed"/>
+       <NumberBox x:Name="HeadAngle" Header="旋转 °" Value="0" Minimum="-25" Maximum="25" Width="110" ValueChanged="Feather_Changed"/>
+      </StackPanel>
+     </Expander>
+    </StackPanel>
+    <Expander x:Name="LegacySettings" Header="旧版局部人脸实验 · 未通过视觉验收" Visibility="Collapsed">
+    <StackPanel Spacing="8">
+    <StackPanel Orientation="Horizontal" Spacing="16">
+     <ComboBox x:Name="Blend" Header="融合算法" Width="175" SelectedIndex="0" SelectionChanged="Options_Changed">
+      <ComboBoxItem Content="Alpha Feather"/><ComboBoxItem Content="Poisson Normal"/><ComboBoxItem Content="Poisson Mixed"/>
+     </ComboBox>
+     <NumberBox x:Name="Feather" Header="羽化半径 / 原图像素" Value="16" Minimum="0" Maximum="256" Width="175" SpinButtonPlacementMode="Compact" ValueChanged="Feather_Changed"/>
+     <StackPanel VerticalAlignment="Bottom" Spacing="8">
+      <CheckBox x:Name="LandmarksToggle" Content="显示关键点" IsChecked="True" Click="Landmarks_Click"/>
+      <StackPanel Orientation="Horizontal" Spacing="12">
+       <ComboBox x:Name="ResultView" SelectedIndex="0" SelectionChanged="ResultView_Changed" Width="140" AutomationProperties.Name="结果查看方式">
+        <ComboBoxItem Content="合成结果"/><ComboBoxItem Content="底图 / Before"/><ComboBoxItem Content="对齐来源"/><ComboBoxItem Content="Mask 支持域"/>
+       </ComboBox>
+       <Button Content="重置结果" Click="Reset_Click"/><Button Content="清空选点" Click="Clear_Click"/>
+      </StackPanel>
+     </StackPanel>
+    </StackPanel>
+    <StackPanel Orientation="Horizontal" Spacing="10">
+     <Button Content="选择 YuNet 模型" Click="Model_Click"/>
+     <Button x:Name="DetectButton" Content="检测全部人脸" Click="Detect_Click" IsEnabled="False"/>
+     <TextBlock x:Name="ModelLabel" Text="可选：本地 face_detection_yunet_2023mar.onnx。手动模式不需要模型。" VerticalAlignment="Center"/>
+    </StackPanel>
+    </StackPanel>
+    </Expander>
+    <StackPanel Orientation="Horizontal" Spacing="12">
+     <ComboBox x:Name="HeadResultView" SelectedIndex="0" SelectionChanged="HeadResultView_Changed" Width="170" AutomationProperties.Name="整头结果查看方式">
+      <ComboBoxItem Content="整头结果"/><ComboBoxItem Content="底图 / Before"/><ComboBoxItem Content="对齐来源"/><ComboBoxItem Content="Mask 支持域"/>
+     </ComboBox>
+     <Button Content="重置" Click="Reset_Click"/><Button Content="重新框选" Click="Clear_Click"/>
+     <NumberBox x:Name="JpegQuality" Header="JPEG 质量" Value="95" Minimum="1" Maximum="100" Width="100" SpinButtonPlacementMode="Compact"/>
+     <TextBlock Text="仅用真实照片像素 · Alpha 羽化 · 相近姿态优先" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+    </StackPanel>
+   </StackPanel>
+  </ScrollViewer>
+  <Grid Grid.Row="4" ColumnSpacing="12">
+   <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+   <ProgressRing x:Name="Progress" Width="22" Height="22" IsActive="False" Visibility="Collapsed"/>
+   <TextBlock x:Name="Status" Grid.Column="1" Text="就绪 · 先加载底图和来源图，也可将文件拖到对应面板。" TextWrapping="Wrap" VerticalAlignment="Center"/>
+   <Button x:Name="CancelButton" Grid.Column="2" Content="取消" Visibility="Collapsed" Click="Cancel_Click"/>
+  </Grid>
+ </Grid>
+</Window>
